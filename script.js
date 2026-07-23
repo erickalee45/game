@@ -53,8 +53,13 @@ function endBattle(didPlayerWin) {
   logMessage(didPlayerWin ? `${enemy.name} is defeated. ${player.name} wins!` : `${player.name} is defeated. ${enemy.name} wins!`);
 }
 
+const ENEMY_THINK_DELAY_MIN_MS = 1000;
+const ENEMY_THINK_DELAY_MAX_MS = 2000;
+
 function takeTurn() {
   if (battleOver) return;
+
+  btnAttack.disabled = true;
 
   const playerDamage = randomDamage(player);
   enemy.hp -= playerDamage;
@@ -66,14 +71,21 @@ function takeTurn() {
     return;
   }
 
-  const enemyDamage = randomDamage(enemy);
-  player.hp -= enemyDamage;
-  logMessage(`${enemy.name} attacks ${player.name} for ${enemyDamage} damage.`);
-  refreshDisplay();
+  logMessage(`${enemy.name} is deciding...`);
 
-  if (player.hp <= 0) {
-    endBattle(false);
-  }
+  const thinkDelay = ENEMY_THINK_DELAY_MIN_MS + Math.random() * (ENEMY_THINK_DELAY_MAX_MS - ENEMY_THINK_DELAY_MIN_MS);
+  setTimeout(() => {
+    const enemyDamage = randomDamage(enemy);
+    player.hp -= enemyDamage;
+    logMessage(`${enemy.name} attacks ${player.name} for ${enemyDamage} damage.`);
+    refreshDisplay();
+
+    if (player.hp <= 0) {
+      endBattle(false);
+    } else {
+      btnAttack.disabled = false;
+    }
+  }, thinkDelay);
 }
 
 function restartBattle() {
