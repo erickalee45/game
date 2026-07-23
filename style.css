@@ -13,20 +13,43 @@ body {
 
 #battle-screen {
   width: 100%;
-  max-width: 480px;
+  max-width: 640px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
+}
+
+#narration-box {
+  width: 100%;
+  border: 2px solid #eee;
+  padding: 10px;
+  height: 110px;
+  overflow-y: auto;
+  font-size: 14px;
+  display: flex;
+  flex-direction: column-reverse;
+}
+
+#battle-stage {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
 }
 
 .fighter-panel {
-  border: 2px solid #eee;
-  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 140px;
 }
 
 .fighter-name {
   font-weight: bold;
-  margin-bottom: 6px;
+  text-align: center;
+  font-size: 14px;
 }
 
 .hp-bar-outer {
@@ -47,26 +70,67 @@ body {
 }
 
 .hp-text {
-  margin-top: 4px;
-  font-size: 14px;
+  font-size: 12px;
 }
 
-#battle-log {
+.sprite-placeholder {
+  width: 96px;
+  height: 96px;
+  background: #eee;
+  image-rendering: pixelated;
+}
+
+#move-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
   border: 2px solid #eee;
   padding: 10px;
-  height: 140px;
-  overflow-y: auto;
+  min-height: 148px;
+}
+
+#move-description {
+  font-size: 13px;
+  min-height: 32px;
+}
+
+#move-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.move-btn {
+  font-family: monospace;
+  background: transparent;
+  color: #eee;
+  border: 2px solid #eee;
+  padding: 8px 12px;
   font-size: 14px;
-  display: flex;
-  flex-direction: column-reverse;
+  cursor: pointer;
+  transition: background-color 0.1s, color 0.1s;
+  flex: 1 1 auto;
 }
 
-#controls {
-  display: flex;
-  gap: 10px;
+.move-btn:hover:not(:disabled),
+.move-btn:focus-visible:not(:disabled) {
+  background: #eee;
+  color: #1a1a1a;
+  outline: none;
 }
 
-button {
+.move-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.move-btn[hidden] {
+  display: none;
+}
+
+#btn-restart {
   font-family: monospace;
   background: #eee;
   color: #1a1a1a;
@@ -74,9 +138,5 @@ button {
   padding: 10px 16px;
   font-size: 14px;
   cursor: pointer;
-}
-
-button:disabled {
-  opacity: 0.5;
-  cursor: default;
+  align-self: flex-start;
 }

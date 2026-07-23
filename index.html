@@ -9,28 +9,36 @@
 
   <div id="battle-screen">
 
-    <div class="fighter-panel" id="panel-enemy">
-      <div class="fighter-name" id="name-enemy">Fighter B</div>
-      <div class="hp-bar-outer">
-        <div class="hp-bar-inner" id="hp-bar-enemy"></div>
+    <div id="narration-box"></div>
+
+    <div id="battle-stage">
+
+      <div class="fighter-panel" id="panel-enemy">
+        <div class="fighter-name" id="name-enemy"></div>
+        <div class="hp-bar-outer">
+          <div class="hp-bar-inner" id="hp-bar-enemy"></div>
+        </div>
+        <div class="hp-text" id="hp-text-enemy"></div>
+        <div class="sprite-placeholder" id="sprite-enemy"></div>
       </div>
-      <div class="hp-text" id="hp-text-enemy"></div>
-    </div>
 
-    <div class="fighter-panel" id="panel-player">
-      <div class="fighter-name" id="name-player">Fighter A</div>
-      <div class="hp-bar-outer">
-        <div class="hp-bar-inner" id="hp-bar-player"></div>
+      <div id="move-panel">
+        <div id="move-description">Hover or focus a move to see what it does.</div>
+        <div id="move-buttons"></div>
       </div>
-      <div class="hp-text" id="hp-text-player"></div>
+
+      <div class="fighter-panel" id="panel-player">
+        <div class="fighter-name" id="name-player"></div>
+        <div class="hp-bar-outer">
+          <div class="hp-bar-inner" id="hp-bar-player"></div>
+        </div>
+        <div class="hp-text" id="hp-text-player"></div>
+        <div class="sprite-placeholder" id="sprite-player"></div>
+      </div>
+
     </div>
 
-    <div id="battle-log"></div>
-
-    <div id="controls">
-      <button id="btn-attack">Attack</button>
-      <button id="btn-restart" style="display:none;">Restart</button>
-    </div>
+    <button id="btn-restart" style="display:none;">Restart</button>
 
   </div>
 
