@@ -137,8 +137,10 @@ const IMMOBILIZED_DAMAGE_MULTIPLIER = 0.3;
 const nameEnemy = document.getElementById("name-enemy");
 const namePlayer = document.getElementById("name-player");
 const hpBarPlayer = document.getElementById("hp-bar-player");
+const hpBarTrailPlayer = document.getElementById("hp-bar-trail-player");
 const hpTextPlayer = document.getElementById("hp-text-player");
 const hpBarEnemy = document.getElementById("hp-bar-enemy");
+const hpBarTrailEnemy = document.getElementById("hp-bar-trail-enemy");
 const hpTextEnemy = document.getElementById("hp-text-enemy");
 const narrationBox = document.getElementById("narration-box");
 const moveDescription = document.getElementById("move-description");
@@ -177,11 +179,20 @@ function flashDamage(spriteEl) {
   spriteEl.addEventListener("animationend", () => spriteEl.classList.remove("hit"), { once: true });
 }
 
-function updateHpDisplay(fighter, barEl, textEl) {
+function updateHpDisplay(fighter, barEl, trailEl, textEl) {
   const pct = Math.max(0, (fighter.hp / fighter.maxHp) * 100);
   barEl.style.width = pct + "%";
   barEl.classList.toggle("low", pct <= 25);
+  trailEl.style.width = pct + "%";
   textEl.textContent = `${Math.max(0, fighter.hp)} / ${fighter.maxHp} HP`;
+}
+
+function snapHpTrail(fighter, trailEl) {
+  const pct = Math.max(0, (fighter.hp / fighter.maxHp) * 100);
+  trailEl.style.transition = "none";
+  trailEl.style.width = pct + "%";
+  void trailEl.offsetWidth;
+  trailEl.style.transition = "";
 }
 
 function updateMoveAvailability() {
@@ -191,8 +202,8 @@ function updateMoveAvailability() {
 }
 
 function refreshDisplay() {
-  updateHpDisplay(getActiveFighter(), hpBarPlayer, hpTextPlayer);
-  updateHpDisplay(enemy, hpBarEnemy, hpTextEnemy);
+  updateHpDisplay(getActiveFighter(), hpBarPlayer, hpBarTrailPlayer, hpTextPlayer);
+  updateHpDisplay(enemy, hpBarEnemy, hpBarTrailEnemy, hpTextEnemy);
   updateMoveAvailability();
   rebuildSwitchPanel();
 }
@@ -314,6 +325,7 @@ function renderActiveFighter() {
   namePlayer.textContent = fighter.name;
   renderSprite(fighter);
   buildMoveButtons(fighter);
+  snapHpTrail(fighter, hpBarTrailPlayer);
   refreshDisplay();
 }
 
