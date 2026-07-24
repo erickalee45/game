@@ -6,7 +6,13 @@ const ROSTER = [
     hp: 100,
     attackMin: 10,
     attackMax: 20,
-    sprite: { type: "placeholder" },
+    sprite: {
+      type: "animated",
+      frames: ["assets/neutrophil/frame-0.png", "assets/neutrophil/frame-1.png", "assets/neutrophil/frame-2.png"],
+      frameDurationMs: 500
+    },
+    // Canon height 5'9" — the baseline the other two fighters scale up from.
+    spriteSize: 96,
     type: "phagocyte",
     weakAgainst: ["virus"],
     // Corrosive Blood: after an enemy attacks him, reflect ~3-5% of the enemy's max HP back.
@@ -49,6 +55,8 @@ const ROSTER = [
       frames: ["assets/macrophage/frame-0.png", "assets/macrophage/frame-1.png", "assets/macrophage/frame-2.png"],
       frameDurationMs: 500
     },
+    // Canon height 6'2" — tallest of the three, a couple px above CTC.
+    spriteSize: 108,
     type: "phagocyte",
     // Macrophages handle both bacteria and viruses fine in real life, so unlike
     // Neutrophil (also a Phagocyte), Macrophage has no weakAgainst entries.
@@ -92,6 +100,8 @@ const ROSTER = [
       frames: ["assets/ctc/frame-0.png", "assets/ctc/frame-1.png", "assets/ctc/frame-2.png"],
       frameDurationMs: 500
     },
+    // Canon height 6'1" — taller than Neutrophil, just under Macrophage.
+    spriteSize: 106,
     type: "adaptive",
     weakAgainst: ["bacteria"],
     // Unshaken: resistant to flinch/stun. No move in the game currently inflicts
@@ -319,6 +329,9 @@ function renderSprite(fighter) {
     clearInterval(ctcAnimationTimer);
     ctcAnimationTimer = null;
   }
+
+  spritePlayer.style.width = fighter.spriteSize + "px";
+  spritePlayer.style.height = fighter.spriteSize + "px";
 
   if (fighter.sprite.type === "animated") {
     spritePlayer.classList.add("has-art");
