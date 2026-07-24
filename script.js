@@ -128,6 +128,8 @@ const enemy = {
 
 const ENEMY_THINK_DELAY_MIN_MS = 1000;
 const ENEMY_THINK_DELAY_MAX_MS = 2000;
+const BLEED_DELAY_MIN_MS = 500;
+const BLEED_DELAY_MAX_MS = 1000;
 const DEFAULT_MOVE_DESCRIPTION = "Hover or focus a move to see what it does.";
 const BLEED_PERCENT = 0.1;
 const IMMOBILIZED_DAMAGE_MULTIPLIER = 0.3;
@@ -146,6 +148,7 @@ const btnSwitch = document.getElementById("btn-switch");
 const switchPanel = document.getElementById("switch-panel");
 const spritePlayer = document.getElementById("sprite-player");
 const spritePlayerImg = document.getElementById("sprite-player-img");
+const spriteEnemy = document.getElementById("sprite-enemy");
 
 let battleOver = false;
 let activeFighterId = DEFAULT_FIGHTER_ID;
@@ -165,6 +168,13 @@ function logMessage(text) {
   const entry = document.createElement("div");
   entry.textContent = text;
   narrationBox.prepend(entry);
+}
+
+function flashDamage(spriteEl) {
+  spriteEl.classList.remove("hit");
+  void spriteEl.offsetWidth;
+  spriteEl.classList.add("hit");
+  spriteEl.addEventListener("animationend", () => spriteEl.classList.remove("hit"), { once: true });
 }
 
 function updateHpDisplay(fighter, barEl, textEl) {
@@ -341,6 +351,7 @@ function useMove(fighter, move) {
 
   const { damage: playerDamage, isCrit, isOneShot } = computePlayerDamage(fighter, move);
   enemy.hp -= playerDamage;
+  flashDamage(spriteEnemy);
   const hitSuffix = isOneShot ? " — finishing them off" : isCrit ? " (critical hit!)" : "";
   logMessage(`${fighter.name} uses ${move.name} on ${enemy.name} for ${playerDamage} damage${hitSuffix}.`);
 
@@ -377,6 +388,7 @@ function useMove(fighter, move) {
     }
 
     fighter.hp -= enemyDamage;
+    flashDamage(spritePlayer);
     logMessage(`${enemy.name} attacks ${fighter.name} for ${enemyDamage} damage.`);
     refreshDisplay();
 
@@ -394,6 +406,7 @@ function useMove(fighter, move) {
       const reflectPercent = fighter.passive.minPercent + Math.random() * (fighter.passive.maxPercent - fighter.passive.minPercent);
       const reflectDamage = Math.max(1, Math.round(enemy.maxHp * reflectPercent));
       enemy.hp -= reflectDamage;
+      flashDamage(spriteEnemy);
       logMessage(`${fighter.name}'s Corrosive Blood deals ${reflectDamage} damage to ${enemy.name}.`);
       refreshDisplay();
 
@@ -404,16 +417,24 @@ function useMove(fighter, move) {
     }
 
     if (enemy.bleeding) {
-      const bleedDamage = Math.max(1, Math.round(enemy.maxHp * BLEED_PERCENT));
-      enemy.hp -= bleedDamage;
-      enemy.bleeding = false;
-      logMessage(`${enemy.name} takes ${bleedDamage} bleed damage.`);
-      refreshDisplay();
+      logMessage(`${enemy.name} is bleeding out...`);
+      const bleedDelay = BLEED_DELAY_MIN_MS + Math.random() * (BLEED_DELAY_MAX_MS - BLEED_DELAY_MIN_MS);
+      setTimeout(() => {
+        const bleedDamage = Math.max(1, Math.round(enemy.maxHp * BLEED_PERCENT));
+        enemy.hp -= bleedDamage;
+        enemy.bleeding = false;
+        flashDamage(spriteEnemy);
+        logMessage(`${enemy.name} takes ${bleedDamage} bleed damage.`);
+        refreshDisplay();
 
-      if (enemy.hp <= 0) {
-        endBattle(true);
-        return;
-      }
+        if (enemy.hp <= 0) {
+          endBattle(true);
+          return;
+        }
+
+        setMovesLocked(false);
+      }, bleedDelay);
+      return;
     }
 
     setMovesLocked(false);

@@ -74,6 +74,7 @@ body {
 }
 
 .sprite-placeholder {
+  position: relative;
   width: 96px;
   height: 96px;
   background: #eee;
@@ -86,6 +87,40 @@ body {
 
 .sprite-placeholder.has-art {
   background: transparent;
+}
+
+.sprite-placeholder::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #d94b4b;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sprite-placeholder.hit {
+  animation: damage-shake 900ms ease-out;
+}
+
+.sprite-placeholder.hit::after {
+  animation: damage-tint 900ms ease-out;
+}
+
+@keyframes damage-tint {
+  0% { opacity: 0; }
+  15% { opacity: 0.35; }
+  100% { opacity: 0; }
+}
+
+@keyframes damage-shake {
+  0%, 100% { transform: translateX(0); }
+  8% { transform: translateX(-5px); }
+  16% { transform: translateX(5px); }
+  24% { transform: translateX(-4px); }
+  32% { transform: translateX(4px); }
+  40% { transform: translateX(-2px); }
+  48% { transform: translateX(2px); }
+  56% { transform: translateX(0); }
 }
 
 .sprite-img {
