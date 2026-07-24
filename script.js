@@ -7,7 +7,8 @@ const ROSTER = [
     attackMin: 10,
     attackMax: 20,
     sprite: { type: "placeholder" },
-    // Corrosive Blood (passive) is intentionally excluded — passives aren't selectable moves.
+    // Corrosive Blood: after an enemy attacks him, reflect ~3-5% of the enemy's max HP back.
+    passive: { type: "corrosiveBlood", minPercent: 0.03, maxPercent: 0.05 },
     moves: [
       {
         id: "slash",
@@ -29,6 +30,7 @@ const ROSTER = [
         name: "Pursue",
         description: "Don't let them get away.",
         damageMultiplier: 1,
+        oneShotChance: 0.25,
         isAvailable: () => enemy.hp > 0 && enemy.hp / enemy.maxHp <= 0.2
       }
     ]
@@ -41,7 +43,8 @@ const ROSTER = [
     attackMin: 10,
     attackMax: 20,
     sprite: { type: "placeholder" },
-    // Tank (passive) is intentionally excluded — passives aren't selectable moves.
+    // Tank: small chance to significantly reduce an incoming hit.
+    passive: { type: "tank", chance: 0.25, reduction: 0.5 },
     moves: [
       {
         id: "shoulder-check",
@@ -79,7 +82,10 @@ const ROSTER = [
       frames: ["assets/ctc/frame-0.png", "assets/ctc/frame-1.png", "assets/ctc/frame-2.png"],
       frameDurationMs: 500
     },
-    // Unshaken (passive) is intentionally excluded — passives aren't selectable moves.
+    // Unshaken: resistant to flinch/stun. No move in the game currently inflicts
+    // either on the player, so this flag has no observable effect yet — it's here
+    // so it's ready once a stunning enemy/boss move exists.
+    passive: { type: "unshaken" },
     moves: [
       {
         id: "fire",
@@ -144,6 +150,7 @@ const spritePlayerImg = document.getElementById("sprite-player-img");
 let battleOver = false;
 let activeFighterId = DEFAULT_FIGHTER_ID;
 let ctcAnimationTimer = null;
+let awaitingForcedSwitch = false;
 const moveButtons = [];
 
 function getActiveFighter() {
@@ -203,25 +210,46 @@ function switchFighter(fighterId) {
     closeSwitchPanel();
     return;
   }
+  const target = ROSTER.find((fighter) => fighter.id === fighterId);
+  if (!target || target.hp <= 0) {
+    return;
+  }
   activeFighterId = fighterId;
+  const wasForcedSwitch = awaitingForcedSwitch;
+  awaitingForcedSwitch = false;
+  btnSwitch.hidden = false;
   closeSwitchPanel();
   renderActiveFighter();
+  if (wasForcedSwitch) {
+    setMovesLocked(false);
+  }
 }
 
 function rebuildSwitchPanel() {
   switchPanel.innerHTML = "";
   ROSTER.forEach((fighter) => {
     const isActive = fighter.id === activeFighterId;
+    const isFainted = fighter.hp <= 0;
     const entry = document.createElement("button");
     entry.type = "button";
     entry.className = "roster-entry" + (isActive ? " active" : "");
-    entry.textContent = isActive
-      ? `${fighter.name} (active) — ${Math.max(0, fighter.hp)}/${fighter.maxHp} HP`
-      : `${fighter.name} — ${Math.max(0, fighter.hp)}/${fighter.maxHp} HP`;
-    entry.disabled = isActive;
+    const status = isFainted ? " (fainted)" : isActive ? " (active)" : "";
+    entry.textContent = `${fighter.name}${status} — ${Math.max(0, fighter.hp)}/${fighter.maxHp} HP`;
+    entry.disabled = isActive || isFainted;
     entry.addEventListener("click", () => switchFighter(fighter.id));
     switchPanel.appendChild(entry);
   });
+}
+
+function beginForcedSwitch(fallenFighter) {
+  awaitingForcedSwitch = true;
+  moveButtonsEl.innerHTML = "";
+  moveButtons.length = 0;
+  moveDescription.textContent = "Choose a fighter to send out!";
+  btnSwitch.hidden = true;
+  switchPanel.hidden = false;
+  rebuildSwitchPanel();
+  logMessage(`${fallenFighter.name} has fallen! Choose another fighter.`);
 }
 
 function renderSprite(fighter) {
@@ -289,7 +317,11 @@ function endBattle(didPlayerWin) {
 
 function computePlayerDamage(fighter, move) {
   if (move.isCrush) {
-    return { damage: Math.max(1, Math.round(enemy.hp * 0.5)), isCrit: false };
+    return { damage: Math.max(1, Math.round(enemy.hp * 0.5)), isCrit: false, isOneShot: false };
+  }
+
+  if (move.oneShotChance && Math.random() < move.oneShotChance) {
+    return { damage: enemy.hp, isCrit: false, isOneShot: true };
   }
 
   let roll = randomDamage(fighter) * move.damageMultiplier;
@@ -299,7 +331,7 @@ function computePlayerDamage(fighter, move) {
     isCrit = true;
   }
 
-  return { damage: Math.max(1, Math.round(roll)), isCrit };
+  return { damage: Math.max(1, Math.round(roll)), isCrit, isOneShot: false };
 }
 
 function useMove(fighter, move) {
@@ -307,9 +339,10 @@ function useMove(fighter, move) {
 
   setMovesLocked(true);
 
-  const { damage: playerDamage, isCrit } = computePlayerDamage(fighter, move);
+  const { damage: playerDamage, isCrit, isOneShot } = computePlayerDamage(fighter, move);
   enemy.hp -= playerDamage;
-  logMessage(`${fighter.name} uses ${move.name} on ${enemy.name} for ${playerDamage} damage${isCrit ? " (critical hit!)" : ""}.`);
+  const hitSuffix = isOneShot ? " — finishing them off" : isCrit ? " (critical hit!)" : "";
+  logMessage(`${fighter.name} uses ${move.name} on ${enemy.name} for ${playerDamage} damage${hitSuffix}.`);
 
   if (move.appliesBleed) {
     enemy.bleeding = true;
@@ -337,13 +370,37 @@ function useMove(fighter, move) {
       enemyDamage = Math.max(1, Math.round(enemyDamage * IMMOBILIZED_DAMAGE_MULTIPLIER));
       enemy.immobilizedTurns -= 1;
     }
+
+    if (fighter.passive?.type === "tank" && Math.random() < fighter.passive.chance) {
+      enemyDamage = Math.max(1, Math.round(enemyDamage * (1 - fighter.passive.reduction)));
+      logMessage(`${fighter.name}'s Tank reduces the hit!`);
+    }
+
     fighter.hp -= enemyDamage;
     logMessage(`${enemy.name} attacks ${fighter.name} for ${enemyDamage} damage.`);
     refreshDisplay();
 
     if (fighter.hp <= 0) {
-      endBattle(false);
+      const hasHealthyTeammate = ROSTER.some((other) => other.id !== fighter.id && other.hp > 0);
+      if (hasHealthyTeammate) {
+        beginForcedSwitch(fighter);
+      } else {
+        endBattle(false);
+      }
       return;
+    }
+
+    if (fighter.passive?.type === "corrosiveBlood") {
+      const reflectPercent = fighter.passive.minPercent + Math.random() * (fighter.passive.maxPercent - fighter.passive.minPercent);
+      const reflectDamage = Math.max(1, Math.round(enemy.maxHp * reflectPercent));
+      enemy.hp -= reflectDamage;
+      logMessage(`${fighter.name}'s Corrosive Blood deals ${reflectDamage} damage to ${enemy.name}.`);
+      refreshDisplay();
+
+      if (enemy.hp <= 0) {
+        endBattle(true);
+        return;
+      }
     }
 
     if (enemy.bleeding) {
@@ -372,6 +429,8 @@ function restartBattle() {
   enemy.immobilizedTurns = 0;
   battleOver = false;
   activeFighterId = DEFAULT_FIGHTER_ID;
+  awaitingForcedSwitch = false;
+  btnSwitch.hidden = false;
   btnRestart.style.display = "none";
   narrationBox.innerHTML = "";
   logMessage("A new battle begins!");
