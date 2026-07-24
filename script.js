@@ -11,7 +11,8 @@ const enemy = {
   maxHp: 100,
   hp: 100,
   attackMin: 8,
-  attackMax: 18
+  attackMax: 18,
+  bleeding: false
 };
 
 // Corrosive Blood (passive) is intentionally excluded — passives aren't selectable moves.
@@ -20,18 +21,22 @@ const MOVES = [
     id: "slash",
     name: "Slash",
     description: "Slash them.",
+    damageMultiplier: 1,
     isAvailable: () => true
   },
   {
     id: "bite",
     name: "Bite",
     description: "Take a bite.",
+    damageMultiplier: 0.5,
+    appliesBleed: true,
     isAvailable: () => true
   },
   {
     id: "pursue",
     name: "Pursue",
     description: "Don't let them get away.",
+    damageMultiplier: 1,
     isAvailable: () => enemy.hp > 0 && enemy.hp / enemy.maxHp <= 0.2
   }
 ];
@@ -39,6 +44,7 @@ const MOVES = [
 const ENEMY_THINK_DELAY_MIN_MS = 1000;
 const ENEMY_THINK_DELAY_MAX_MS = 2000;
 const DEFAULT_MOVE_DESCRIPTION = "Hover or focus a move to see what it does.";
+const BLEED_PERCENT = 0.1;
 
 const nameEnemy = document.getElementById("name-enemy");
 const namePlayer = document.getElementById("name-player");
@@ -50,6 +56,8 @@ const narrationBox = document.getElementById("narration-box");
 const moveDescription = document.getElementById("move-description");
 const moveButtonsEl = document.getElementById("move-buttons");
 const btnRestart = document.getElementById("btn-restart");
+const btnSwitch = document.getElementById("btn-switch");
+const switchPanel = document.getElementById("switch-panel");
 
 let battleOver = false;
 const moveButtons = [];
@@ -87,6 +95,25 @@ function setMovesLocked(locked) {
   moveButtons.forEach(({ el }) => {
     el.disabled = locked;
   });
+  btnSwitch.disabled = locked;
+  if (locked) {
+    closeSwitchPanel();
+  }
+}
+
+function closeSwitchPanel() {
+  switchPanel.hidden = true;
+}
+
+function toggleSwitchPanel() {
+  switchPanel.hidden = !switchPanel.hidden;
+}
+
+function buildSwitchPanel() {
+  const entry = document.createElement("div");
+  entry.className = "roster-entry active";
+  entry.textContent = `${player.name} (active)`;
+  switchPanel.appendChild(entry);
 }
 
 function showMoveDescription(move) {
@@ -124,9 +151,15 @@ function useMove(move) {
 
   setMovesLocked(true);
 
-  const playerDamage = randomDamage(player);
+  const playerDamage = Math.max(1, Math.round(randomDamage(player) * move.damageMultiplier));
   enemy.hp -= playerDamage;
   logMessage(`${player.name} uses ${move.name} on ${enemy.name} for ${playerDamage} damage.`);
+
+  if (move.appliesBleed) {
+    enemy.bleeding = true;
+    logMessage(`${enemy.name} is bleeding!`);
+  }
+
   refreshDisplay();
 
   if (enemy.hp <= 0) {
@@ -145,15 +178,30 @@ function useMove(move) {
 
     if (player.hp <= 0) {
       endBattle(false);
-    } else {
-      setMovesLocked(false);
+      return;
     }
+
+    if (enemy.bleeding) {
+      const bleedDamage = Math.max(1, Math.round(enemy.maxHp * BLEED_PERCENT));
+      enemy.hp -= bleedDamage;
+      enemy.bleeding = false;
+      logMessage(`${enemy.name} takes ${bleedDamage} bleed damage.`);
+      refreshDisplay();
+
+      if (enemy.hp <= 0) {
+        endBattle(true);
+        return;
+      }
+    }
+
+    setMovesLocked(false);
   }, thinkDelay);
 }
 
 function restartBattle() {
   player.hp = player.maxHp;
   enemy.hp = enemy.maxHp;
+  enemy.bleeding = false;
   battleOver = false;
   setMovesLocked(false);
   btnRestart.style.display = "none";
@@ -163,10 +211,12 @@ function restartBattle() {
 }
 
 btnRestart.addEventListener("click", restartBattle);
+btnSwitch.addEventListener("click", toggleSwitchPanel);
 
 nameEnemy.textContent = enemy.name;
 namePlayer.textContent = player.name;
 
 buildMoveButtons();
+buildSwitchPanel();
 refreshDisplay();
 logMessage("A new battle begins!");

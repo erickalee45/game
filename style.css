@@ -140,3 +140,50 @@ body {
   cursor: pointer;
   align-self: flex-start;
 }
+
+#btn-switch {
+  font-family: monospace;
+  background: transparent;
+  color: #eee;
+  border: 2px solid #eee;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  width: 100%;
+  transition: background-color 0.1s, color 0.1s;
+}
+
+#btn-switch:hover:not(:disabled),
+#btn-switch:focus-visible:not(:disabled) {
+  background: #eee;
+  color: #1a1a1a;
+  outline: none;
+}
+
+#btn-switch:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+#switch-panel {
+  width: 100%;
+  border: 2px solid #eee;
+  padding: 6px;
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+#switch-panel[hidden] {
+  display: none;
+}
+
+.roster-entry {
+  padding: 4px 6px;
+  text-align: left;
+}
+
+.roster-entry.active {
+  font-weight: bold;
+}
