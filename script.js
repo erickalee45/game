@@ -44,7 +44,11 @@ const ROSTER = [
     hp: 100,
     attackMin: 10,
     attackMax: 20,
-    sprite: { type: "placeholder" },
+    sprite: {
+      type: "animated",
+      frames: ["assets/macrophage/frame-0.png", "assets/macrophage/frame-1.png", "assets/macrophage/frame-2.png"],
+      frameDurationMs: 500
+    },
     type: "phagocyte",
     // Macrophages handle both bacteria and viruses fine in real life, so unlike
     // Neutrophil (also a Phagocyte), Macrophage has no weakAgainst entries.
