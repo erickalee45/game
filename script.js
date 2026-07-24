@@ -290,7 +290,9 @@ function rebuildSwitchPanel() {
     entry.type = "button";
     entry.className = "roster-entry" + (isActive ? " active" : "");
     const status = isFainted ? " (fainted)" : isActive ? " (active)" : "";
-    entry.textContent = `${fighter.name}${status} — ${Math.max(0, fighter.hp)}/${fighter.maxHp} HP`;
+    const label = document.createElement("span");
+    label.textContent = `${fighter.name}${status} — ${Math.max(0, fighter.hp)}/${fighter.maxHp} HP`;
+    entry.appendChild(label);
     entry.disabled = isActive || isFainted;
     entry.addEventListener("click", () => switchFighter(fighter.id));
     switchPanel.appendChild(entry);
@@ -344,7 +346,9 @@ function buildMoveButtons(fighter) {
   fighter.moves.forEach((move) => {
     const btn = document.createElement("button");
     btn.className = "move-btn";
-    btn.textContent = move.name;
+    const label = document.createElement("span");
+    label.textContent = move.name;
+    btn.appendChild(label);
     btn.addEventListener("mouseenter", () => showMoveDescription(move));
     btn.addEventListener("focus", () => showMoveDescription(move));
     btn.addEventListener("mouseleave", resetMoveDescription);
