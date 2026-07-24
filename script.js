@@ -7,6 +7,8 @@ const ROSTER = [
     attackMin: 10,
     attackMax: 20,
     sprite: { type: "placeholder" },
+    type: "phagocyte",
+    weakAgainst: ["virus"],
     // Corrosive Blood: after an enemy attacks him, reflect ~3-5% of the enemy's max HP back.
     passive: { type: "corrosiveBlood", minPercent: 0.03, maxPercent: 0.05 },
     moves: [
@@ -43,6 +45,10 @@ const ROSTER = [
     attackMin: 10,
     attackMax: 20,
     sprite: { type: "placeholder" },
+    type: "phagocyte",
+    // Macrophages handle both bacteria and viruses fine in real life, so unlike
+    // Neutrophil (also a Phagocyte), Macrophage has no weakAgainst entries.
+    weakAgainst: [],
     // Tank: small chance to significantly reduce an incoming hit.
     passive: { type: "tank", chance: 0.25, reduction: 0.5 },
     moves: [
@@ -82,6 +88,8 @@ const ROSTER = [
       frames: ["assets/ctc/frame-0.png", "assets/ctc/frame-1.png", "assets/ctc/frame-2.png"],
       frameDurationMs: 500
     },
+    type: "adaptive",
+    weakAgainst: ["bacteria"],
     // Unshaken: resistant to flinch/stun. No move in the game currently inflicts
     // either on the player, so this flag has no observable effect yet — it's here
     // so it's ready once a stunning enemy/boss move exists.
@@ -116,15 +124,42 @@ const ROSTER = [
 
 const DEFAULT_FIGHTER_ID = "neutrophil";
 
-const enemy = {
-  name: "Opportunistic Bacterium",
-  maxHp: 100,
-  hp: 100,
-  attackMin: 8,
-  attackMax: 18,
-  bleeding: false,
-  immobilizedTurns: 0
-};
+const ENEMY_TEMPLATES = [
+  {
+    name: "Opportunistic Bacterium",
+    type: "bacteria",
+    attackName: "Scratch",
+    maxHp: 100,
+    attackMin: 8,
+    attackMax: 18
+  },
+  {
+    name: "Opportunistic Virus",
+    type: "virus",
+    attackName: "Infect",
+    maxHp: 100,
+    attackMin: 8,
+    attackMax: 18
+  }
+];
+
+let enemy;
+
+function spawnRandomEnemy() {
+  const template = ENEMY_TEMPLATES[Math.floor(Math.random() * ENEMY_TEMPLATES.length)];
+  enemy = {
+    name: template.name,
+    type: template.type,
+    attackName: template.attackName,
+    maxHp: template.maxHp,
+    hp: template.maxHp,
+    attackMin: template.attackMin,
+    attackMax: template.attackMax,
+    bleeding: false,
+    immobilizedTurns: 0
+  };
+  nameEnemy.textContent = enemy.name;
+}
 
 const ENEMY_THINK_DELAY_MIN_MS = 1000;
 const ENEMY_THINK_DELAY_MAX_MS = 2000;
@@ -338,12 +373,16 @@ function endBattle(didPlayerWin) {
 }
 
 function computePlayerDamage(fighter, move) {
-  if (move.isCrush) {
-    return { damage: Math.max(1, Math.round(enemy.hp * 0.5)), isCrit: false, isOneShot: false };
+  if (move.oneShotChance && Math.random() < move.oneShotChance) {
+    return { damage: enemy.hp, isCrit: false, isOneShot: true, isNotVeryEffective: false };
   }
 
-  if (move.oneShotChance && Math.random() < move.oneShotChance) {
-    return { damage: enemy.hp, isCrit: false, isOneShot: true };
+  const isNotVeryEffective = fighter.weakAgainst?.includes(enemy.type) ?? false;
+  const weaknessMultiplier = isNotVeryEffective ? 0.5 : 1;
+
+  if (move.isCrush) {
+    const damage = Math.max(1, Math.round(enemy.hp * 0.5 * weaknessMultiplier));
+    return { damage, isCrit: false, isOneShot: false, isNotVeryEffective };
   }
 
   let roll = randomDamage(fighter) * move.damageMultiplier;
@@ -352,8 +391,9 @@ function computePlayerDamage(fighter, move) {
     roll *= 2;
     isCrit = true;
   }
+  roll *= weaknessMultiplier;
 
-  return { damage: Math.max(1, Math.round(roll)), isCrit, isOneShot: false };
+  return { damage: Math.max(1, Math.round(roll)), isCrit, isOneShot: false, isNotVeryEffective };
 }
 
 function useMove(fighter, move) {
@@ -361,11 +401,15 @@ function useMove(fighter, move) {
 
   setMovesLocked(true);
 
-  const { damage: playerDamage, isCrit, isOneShot } = computePlayerDamage(fighter, move);
+  const { damage: playerDamage, isCrit, isOneShot, isNotVeryEffective } = computePlayerDamage(fighter, move);
   enemy.hp -= playerDamage;
   flashDamage(spriteEnemy);
   const hitSuffix = isOneShot ? " — finishing them off" : isCrit ? " (critical hit!)" : "";
   logMessage(`${fighter.name} uses ${move.name} on ${enemy.name} for ${playerDamage} damage${hitSuffix}.`);
+
+  if (isNotVeryEffective) {
+    logMessage("But it doesn't seem very effective...");
+  }
 
   if (move.appliesBleed) {
     enemy.bleeding = true;
@@ -401,7 +445,7 @@ function useMove(fighter, move) {
 
     fighter.hp -= enemyDamage;
     flashDamage(spritePlayer);
-    logMessage(`${enemy.name} attacks ${fighter.name} for ${enemyDamage} damage.`);
+    logMessage(`${enemy.name} uses ${enemy.attackName} on ${fighter.name} for ${enemyDamage} damage.`);
     refreshDisplay();
 
     if (fighter.hp <= 0) {
@@ -457,9 +501,7 @@ function restartBattle() {
   ROSTER.forEach((fighter) => {
     fighter.hp = fighter.maxHp;
   });
-  enemy.hp = enemy.maxHp;
-  enemy.bleeding = false;
-  enemy.immobilizedTurns = 0;
+  spawnRandomEnemy();
   battleOver = false;
   activeFighterId = DEFAULT_FIGHTER_ID;
   awaitingForcedSwitch = false;
@@ -474,7 +516,6 @@ function restartBattle() {
 btnRestart.addEventListener("click", restartBattle);
 btnSwitch.addEventListener("click", toggleSwitchPanel);
 
-nameEnemy.textContent = enemy.name;
-
+spawnRandomEnemy();
 renderActiveFighter();
 logMessage("A new battle begins!");
