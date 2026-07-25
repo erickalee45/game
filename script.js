@@ -64,6 +64,10 @@ const ROSTER = [
     // Macrophages handle both bacteria and viruses fine in real life, so unlike
     // Neutrophil (also a Phagocyte), Macrophage has no weakAgainst entries.
     weakAgainst: [],
+    // Exception to the idle/battle split: his design covers his eyes, so there's
+    // no separate forward-facing pose — idle doubles as both the cutscene and
+    // battle "idle" mood art.
+    portrait: { idle: "assets/macrophage/idle-portrait.png", hurt: "assets/macrophage/hurt-portrait.png" },
     // Tank: small chance to significantly reduce an incoming hit.
     passive: { type: "tank", chance: 0.25, reduction: 0.5 },
     moves: [
@@ -623,7 +627,7 @@ runBattleSteps([{ text: "A new battle begins!", mood: "idle", apply: () => {} }]
 
 const CUTSCENE_CHARACTERS = {
   neutrophil: { name: "Neutrophil", lines: ["[placeholder]"], lineIndex: 0, read: false, portrait: "assets/neutrophil/idle-portrait.png" },
-  macrophage: { name: "Macrophage", lines: ["[placeholder]"], lineIndex: 0, read: false },
+  macrophage: { name: "Macrophage", lines: ["[placeholder]"], lineIndex: 0, read: false, portrait: "assets/macrophage/idle-portrait.png" },
   ctc: { name: "Cytotoxic T Cell", lines: ["[placeholder]"], lineIndex: 0, read: false, portrait: "assets/ctc/idle-portrait.png" }
 };
 
