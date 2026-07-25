@@ -676,6 +676,7 @@ function openDialogue(charId) {
 
 function closeDialogue() {
   dialogueBox.hidden = true;
+  dialoguePortrait.hidden = true;
 }
 
 function allDialogueRead() {
