@@ -809,6 +809,17 @@ const SHOCK_EVENT_LINES = [
 
 const SHOCK_EVENT_DELAY_MS = 500;
 
+// Placeholder small talk for cutscene 2 — same shared/separate structure as
+// cutscene 1 (Neutrophil and Macrophage share a conversation since they're
+// still sitting together, CTC gets his own lines), real dialogue TBD.
+const NM_CONVERSATION_2 = [
+  { speaker: "neutrophil", mood: "idle", text: "[placeholder]" }
+];
+
+const CTC_MONOLOGUE_2 = [
+  { speaker: "ctc", mood: "idle", text: "[placeholder]", thought: true }
+];
+
 const cutsceneScreen = document.getElementById("cutscene-screen");
 const cutsceneStageEl = document.getElementById("cutscene-stage");
 const cutscene2Screen = document.getElementById("cutscene2-screen");
@@ -818,6 +829,11 @@ const dialogueBox = document.getElementById("dialogue-box");
 const dialogueSpeaker = document.getElementById("dialogue-speaker");
 const dialogueText = document.getElementById("dialogue-text");
 const btnContinueFighting = document.getElementById("btn-continue-fighting");
+
+const dialogue2Portrait = document.getElementById("dialogue2-portrait");
+const dialogue2Box = document.getElementById("dialogue2-box");
+const dialogue2Speaker = document.getElementById("dialogue2-speaker");
+const dialogue2Text = document.getElementById("dialogue2-text");
 
 const cutsceneBubbles = {
   neutrophil: document.getElementById("bubble-neutrophil"),
@@ -831,67 +847,90 @@ const cutsceneHotspots = {
   ctc: document.getElementById("hotspot-ctc")
 };
 
+const cutscene2Bubbles = {
+  neutrophil: document.getElementById("bubble2-neutrophil"),
+  macrophage: document.getElementById("bubble2-macrophage"),
+  ctc: document.getElementById("bubble2-ctc")
+};
+
+const cutscene2Hotspots = {
+  neutrophil: document.getElementById("hotspot2-neutrophil"),
+  macrophage: document.getElementById("hotspot2-macrophage"),
+  ctc: document.getElementById("hotspot2-ctc")
+};
+
 // "before" = pre-infection small talk; "after" = post-shock, everyone's on alert.
 let cutsceneStage = "before";
 let nmDialogueRead = false;
 let ctcDialogueRead = false;
 
-let cutsceneLines = [];
-let cutsceneLineIndex = 0;
-let cutsceneOnFinished = null;
-
-function hideAllBubbles() {
-  Object.values(cutsceneBubbles).forEach((bubble) => {
+function hideBubbles(bubbles) {
+  Object.values(bubbles).forEach((bubble) => {
     bubble.hidden = true;
   });
 }
 
-function showCutsceneLine(entry) {
-  const character = CUTSCENE_CHARACTERS[entry.speaker];
-  dialogueSpeaker.textContent = character.name;
-  dialogueText.textContent = entry.text;
-  dialogueText.classList.toggle("inner-thought", !!entry.thought);
+// A self-contained click-to-continue VN engine bound to one dialogue box/portrait
+// pair. Each cutscene screen gets its own instance so they don't share state.
+function createDialogueEngine(box, portrait, speaker, text, onOpen) {
+  let lines = [];
+  let lineIndex = 0;
+  let onFinished = null;
 
-  const portraitSrc = character.portraits[entry.mood || "idle"];
-  if (portraitSrc) {
-    dialoguePortrait.src = portraitSrc;
-    dialoguePortrait.hidden = false;
-  } else {
-    dialoguePortrait.hidden = true;
+  function showLine(entry) {
+    const character = CUTSCENE_CHARACTERS[entry.speaker];
+    speaker.textContent = character.name;
+    text.textContent = entry.text;
+    text.classList.toggle("inner-thought", !!entry.thought);
+
+    const portraitSrc = character.portraits[entry.mood || "idle"];
+    if (portraitSrc) {
+      portrait.src = portraitSrc;
+      portrait.hidden = false;
+    } else {
+      portrait.hidden = true;
+    }
+
+    box.hidden = false;
   }
 
-  dialogueBox.hidden = false;
-  hideAllBubbles();
-}
+  function close() {
+    box.hidden = true;
+    portrait.hidden = true;
+    text.classList.remove("inner-thought");
+    lines = [];
+    lineIndex = 0;
 
-function closeCutsceneDialogue() {
-  dialogueBox.hidden = true;
-  dialoguePortrait.hidden = true;
-  dialogueText.classList.remove("inner-thought");
-  cutsceneLines = [];
-  cutsceneLineIndex = 0;
-
-  const onFinished = cutsceneOnFinished;
-  cutsceneOnFinished = null;
-  if (onFinished) onFinished();
-}
-
-function advanceCutsceneDialogue() {
-  if (cutsceneLineIndex >= cutsceneLines.length) {
-    closeCutsceneDialogue();
-    return;
+    const finished = onFinished;
+    onFinished = null;
+    if (finished) finished();
   }
-  const entry = cutsceneLines[cutsceneLineIndex];
-  cutsceneLineIndex++;
-  showCutsceneLine(entry);
+
+  function advance() {
+    if (lineIndex >= lines.length) {
+      close();
+      return;
+    }
+    const entry = lines[lineIndex];
+    lineIndex++;
+    showLine(entry);
+  }
+
+  function open(newLines, finishedCallback) {
+    if (onOpen) onOpen();
+    lines = newLines;
+    lineIndex = 0;
+    onFinished = finishedCallback || null;
+    advance();
+  }
+
+  box.addEventListener("click", advance);
+
+  return { open };
 }
 
-function openCutsceneSequence(lines, onFinished) {
-  cutsceneLines = lines;
-  cutsceneLineIndex = 0;
-  cutsceneOnFinished = onFinished || null;
-  advanceCutsceneDialogue();
-}
+const cutscene1Dialogue = createDialogueEngine(dialogueBox, dialoguePortrait, dialogueSpeaker, dialogueText, () => hideBubbles(cutsceneBubbles));
+const cutscene2Dialogue = createDialogueEngine(dialogue2Box, dialogue2Portrait, dialogue2Speaker, dialogue2Text, () => hideBubbles(cutscene2Bubbles));
 
 function shakeScreen() {
   cutsceneStageEl.classList.remove("shake");
@@ -910,7 +949,7 @@ function triggerShockEvent() {
   cutsceneStage = "after";
   shakeScreen();
   setTimeout(() => {
-    openCutsceneSequence(SHOCK_EVENT_LINES, () => {
+    cutscene1Dialogue.open(SHOCK_EVENT_LINES, () => {
       btnContinueFighting.hidden = false;
     });
   }, SHOCK_EVENT_DELAY_MS);
@@ -919,7 +958,7 @@ function triggerShockEvent() {
 function handleHotspotClick(charId) {
   if (charId === "ctc") {
     const lines = cutsceneStage === "before" ? CTC_MONOLOGUE_BEFORE : CTC_MONOLOGUE_AFTER;
-    openCutsceneSequence(lines, () => {
+    cutscene1Dialogue.open(lines, () => {
       if (cutsceneStage === "before") {
         ctcDialogueRead = true;
         checkPreEventProgress();
@@ -927,7 +966,7 @@ function handleHotspotClick(charId) {
     });
   } else {
     const lines = cutsceneStage === "before" ? NM_CONVERSATION_BEFORE : NM_CONVERSATION_AFTER;
-    openCutsceneSequence(lines, () => {
+    cutscene1Dialogue.open(lines, () => {
       if (cutsceneStage === "before") {
         nmDialogueRead = true;
         checkPreEventProgress();
@@ -936,29 +975,37 @@ function handleHotspotClick(charId) {
   }
 }
 
+function handleHotspot2Click(charId) {
+  const lines = charId === "ctc" ? CTC_MONOLOGUE_2 : NM_CONVERSATION_2;
+  cutscene2Dialogue.open(lines);
+}
+
 function goToBattle() {
   cutsceneScreen.hidden = true;
   battleScreenEl.hidden = false;
 }
 
-Object.entries(cutsceneHotspots).forEach(([charId, hotspot]) => {
-  const bubble = cutsceneBubbles[charId];
-  hotspot.addEventListener("mouseenter", () => {
-    bubble.hidden = false;
+function wireHotspots(hotspots, bubbles, onClick) {
+  Object.entries(hotspots).forEach(([charId, hotspot]) => {
+    const bubble = bubbles[charId];
+    hotspot.addEventListener("mouseenter", () => {
+      bubble.hidden = false;
+    });
+    hotspot.addEventListener("focus", () => {
+      bubble.hidden = false;
+    });
+    hotspot.addEventListener("mouseleave", () => {
+      bubble.hidden = true;
+    });
+    hotspot.addEventListener("blur", () => {
+      bubble.hidden = true;
+    });
+    hotspot.addEventListener("click", () => onClick(charId));
   });
-  hotspot.addEventListener("focus", () => {
-    bubble.hidden = false;
-  });
-  hotspot.addEventListener("mouseleave", () => {
-    bubble.hidden = true;
-  });
-  hotspot.addEventListener("blur", () => {
-    bubble.hidden = true;
-  });
-  hotspot.addEventListener("click", () => handleHotspotClick(charId));
-});
+}
 
-dialogueBox.addEventListener("click", advanceCutsceneDialogue);
+wireHotspots(cutsceneHotspots, cutsceneBubbles, handleHotspotClick);
+wireHotspots(cutscene2Hotspots, cutscene2Bubbles, handleHotspot2Click);
 
 btnContinueFighting.addEventListener("click", goToBattle);
 
