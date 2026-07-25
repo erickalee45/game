@@ -212,8 +212,10 @@ body {
   position: absolute;
   left: 3%;
   bottom: 0;
-  height: 46vh;
-  max-height: 420px;
+  /* Scales with whichever grows the view more: a wide, short browser window
+     (going from a split pane to full width) needs the vw term to keep the
+     character from shrinking relative to all the new horizontal space. */
+  height: clamp(240px, max(46vh, 26vw), 60vh);
   width: auto;
   object-fit: contain;
   image-rendering: pixelated;
