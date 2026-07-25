@@ -225,11 +225,17 @@ body {
   height: 85%;
 }
 
-/* Battle: the fighter panel (name/HP/sprite/switch button) is a fixed
-   260px tall regardless of viewport size, so grow the portrait to just
-   about reach the Switch Character button without covering it. */
+/* Battle: #battle-stage is capped at 640px wide and centered, so once the
+   window is wide enough it drifts away from the portrait's fixed left:3%
+   position and there's nothing left to bump into horizontally — safe to go
+   almost as big as the cutscene portrait (85vh). Below that width the stage
+   still hugs the left edge under the fighter panel, so fall back to the
+   vertical-only limit: the panel (name/HP/sprite/switch button) is a fixed
+   260px tall regardless of viewport size, so cap the portrait just shy of
+   the Switch Character button. Taking the larger of the two lets the size
+   grow continuously with the window instead of snapping at a breakpoint. */
 #battle-dialogue-portrait {
-  height: max(200px, calc(100vh - 290px));
+  height: max(200px, calc(100vh - 290px), min(85vh, calc(74.4vw - 522px)));
 }
 
 .dialogue-portrait[hidden] {
