@@ -626,21 +626,66 @@ runBattleSteps([{ text: "A new battle begins!", mood: "idle", apply: () => {} }]
 // ---------- Cutscene ----------
 
 const CUTSCENE_CHARACTERS = {
-  neutrophil: { name: "Neutrophil", lines: ["[placeholder]"], lineIndex: 0, read: false, portrait: "assets/neutrophil/idle-portrait.png" },
-  macrophage: { name: "Macrophage", lines: ["[placeholder]"], lineIndex: 0, read: false, portrait: "assets/macrophage/idle-portrait.png" },
-  ctc: { name: "Cytotoxic T Cell", lines: ["[placeholder]"], lineIndex: 0, read: false, portrait: "assets/ctc/idle-portrait.png" }
+  neutrophil: {
+    name: "Neutrophil",
+    portraits: { idle: "assets/neutrophil/idle-portrait.png", shocked: "assets/neutrophil/shocked-portrait.png" }
+  },
+  macrophage: {
+    name: "Macrophage",
+    portraits: {
+      idle: "assets/macrophage/idle-portrait.png",
+      hurt: "assets/macrophage/hurt-portrait.png",
+      shocked: "assets/macrophage/shocked-portrait.png"
+    }
+  },
+  ctc: {
+    name: "Cytotoxic T Cell",
+    portraits: { idle: "assets/ctc/idle-portrait.png", shocked: "assets/ctc/shocked-portrait.png" }
+  }
 };
 
+const NM_CONVERSATION_BEFORE = [
+  { speaker: "neutrophil", mood: "idle", text: "So, how's your patrol route?" },
+  { speaker: "macrophage", mood: "idle", text: "Pretty calm today." },
+  { speaker: "neutrophil", mood: "idle", text: "That's rare. See any foreign invaders at all?" },
+  { speaker: "macrophage", mood: "idle", text: "No. Not yet, at least." },
+  { speaker: "neutrophil", mood: "idle", text: "That's strange. There's always *something*." },
+  { speaker: "macrophage", mood: "idle", text: "Maybe it'll stay that way." }
+];
+
+const NM_CONVERSATION_AFTER = [
+  { speaker: "neutrophil", mood: "shocked", text: "..we should probably go handle that." },
+  { speaker: "macrophage", mood: "hurt", text: "....yes." }
+];
+
+const CTC_MONOLOGUE_BEFORE = [
+  { speaker: "ctc", mood: "idle", text: "(9 minutes until break's over.)", thought: true },
+  { speaker: "ctc", mood: "idle", text: "(...I wonder what Arden's doing.)", thought: true }
+];
+
+const CTC_MONOLOGUE_AFTER = [
+  { speaker: "ctc", mood: "idle", text: "(I should go see what happened.)", thought: true }
+];
+
+const SHOCK_EVENT_LINES = [
+  { speaker: "neutrophil", mood: "shocked", text: "...!!" },
+  { speaker: "macrophage", mood: "shocked", text: "...!!" },
+  { speaker: "ctc", mood: "shocked", text: "...!!" },
+  { speaker: "neutrophil", mood: "shocked", text: "...spoke too soon about things being quiet." },
+  { speaker: "macrophage", mood: "hurt", text: "Move." },
+  { speaker: "ctc", mood: "idle", text: "(Back to work, then.)", thought: true }
+];
+
+const SHOCK_EVENT_DELAY_MS = 500;
+
 const cutsceneScreen = document.getElementById("cutscene-screen");
+const cutsceneStageEl = document.getElementById("cutscene-stage");
 const battleScreenEl = document.getElementById("battle-screen");
 const dialoguePortrait = document.getElementById("dialogue-portrait");
 const dialogueBox = document.getElementById("dialogue-box");
 const dialogueSpeaker = document.getElementById("dialogue-speaker");
 const dialogueText = document.getElementById("dialogue-text");
 const btnContinueFighting = document.getElementById("btn-continue-fighting");
-const dialogueWarningModal = document.getElementById("dialogue-warning-modal");
-const btnWarningYes = document.getElementById("btn-warning-yes");
-const btnWarningNo = document.getElementById("btn-warning-no");
 
 const cutsceneBubbles = {
   neutrophil: document.getElementById("bubble-neutrophil"),
@@ -654,43 +699,112 @@ const cutsceneHotspots = {
   ctc: document.getElementById("hotspot-ctc")
 };
 
+// "before" = pre-infection small talk; "after" = post-shock, everyone's on alert.
+let cutsceneStage = "before";
+let nmDialogueRead = false;
+let ctcDialogueRead = false;
+
+let cutsceneLines = [];
+let cutsceneLineIndex = 0;
+let cutsceneOnFinished = null;
+
 function hideAllBubbles() {
   Object.values(cutsceneBubbles).forEach((bubble) => {
     bubble.hidden = true;
   });
 }
 
-function openDialogue(charId) {
-  const character = CUTSCENE_CHARACTERS[charId];
+function showCutsceneLine(entry) {
+  const character = CUTSCENE_CHARACTERS[entry.speaker];
   dialogueSpeaker.textContent = character.name;
-  dialogueText.textContent = character.lines[character.lineIndex];
-  if (character.portrait) {
-    dialoguePortrait.src = character.portrait;
+  dialogueText.textContent = entry.text;
+  dialogueText.classList.toggle("inner-thought", !!entry.thought);
+
+  const portraitSrc = character.portraits[entry.mood || "idle"];
+  if (portraitSrc) {
+    dialoguePortrait.src = portraitSrc;
     dialoguePortrait.hidden = false;
   } else {
     dialoguePortrait.hidden = true;
   }
+
   dialogueBox.hidden = false;
   hideAllBubbles();
+}
 
-  character.lineIndex++;
-  if (character.lineIndex >= character.lines.length) {
-    character.read = true;
-    character.lineIndex = 0;
+function closeCutsceneDialogue() {
+  dialogueBox.hidden = true;
+  dialoguePortrait.hidden = true;
+  dialogueText.classList.remove("inner-thought");
+  cutsceneLines = [];
+  cutsceneLineIndex = 0;
+
+  const onFinished = cutsceneOnFinished;
+  cutsceneOnFinished = null;
+  if (onFinished) onFinished();
+}
+
+function advanceCutsceneDialogue() {
+  if (cutsceneLineIndex >= cutsceneLines.length) {
+    closeCutsceneDialogue();
+    return;
+  }
+  const entry = cutsceneLines[cutsceneLineIndex];
+  cutsceneLineIndex++;
+  showCutsceneLine(entry);
+}
+
+function openCutsceneSequence(lines, onFinished) {
+  cutsceneLines = lines;
+  cutsceneLineIndex = 0;
+  cutsceneOnFinished = onFinished || null;
+  advanceCutsceneDialogue();
+}
+
+function shakeScreen() {
+  cutsceneStageEl.classList.remove("shake");
+  void cutsceneStageEl.offsetWidth;
+  cutsceneStageEl.classList.add("shake");
+  cutsceneStageEl.addEventListener("animationend", () => cutsceneStageEl.classList.remove("shake"), { once: true });
+}
+
+function checkPreEventProgress() {
+  if (cutsceneStage === "before" && nmDialogueRead && ctcDialogueRead) {
+    triggerShockEvent();
   }
 }
 
-function closeDialogue() {
-  dialogueBox.hidden = true;
-  dialoguePortrait.hidden = true;
+function triggerShockEvent() {
+  cutsceneStage = "after";
+  shakeScreen();
+  setTimeout(() => {
+    openCutsceneSequence(SHOCK_EVENT_LINES, () => {
+      btnContinueFighting.hidden = false;
+    });
+  }, SHOCK_EVENT_DELAY_MS);
 }
 
-function allDialogueRead() {
-  return Object.values(CUTSCENE_CHARACTERS).every((character) => character.read);
+function handleHotspotClick(charId) {
+  if (charId === "ctc") {
+    const lines = cutsceneStage === "before" ? CTC_MONOLOGUE_BEFORE : CTC_MONOLOGUE_AFTER;
+    openCutsceneSequence(lines, () => {
+      if (cutsceneStage === "before") {
+        ctcDialogueRead = true;
+        checkPreEventProgress();
+      }
+    });
+  } else {
+    const lines = cutsceneStage === "before" ? NM_CONVERSATION_BEFORE : NM_CONVERSATION_AFTER;
+    openCutsceneSequence(lines, () => {
+      if (cutsceneStage === "before") {
+        nmDialogueRead = true;
+        checkPreEventProgress();
+      }
+    });
+  }
 }
 
 function goToBattle() {
-  dialogueWarningModal.hidden = true;
   cutsceneScreen.hidden = true;
   battleScreenEl.hidden = false;
 }
@@ -709,23 +823,12 @@ Object.entries(cutsceneHotspots).forEach(([charId, hotspot]) => {
   hotspot.addEventListener("blur", () => {
     bubble.hidden = true;
   });
-  hotspot.addEventListener("click", () => openDialogue(charId));
+  hotspot.addEventListener("click", () => handleHotspotClick(charId));
 });
 
-dialogueBox.addEventListener("click", closeDialogue);
+dialogueBox.addEventListener("click", advanceCutsceneDialogue);
 
-btnContinueFighting.addEventListener("click", () => {
-  if (allDialogueRead()) {
-    goToBattle();
-  } else {
-    dialogueWarningModal.hidden = false;
-  }
-});
-
-btnWarningYes.addEventListener("click", goToBattle);
-btnWarningNo.addEventListener("click", () => {
-  dialogueWarningModal.hidden = true;
-});
+btnContinueFighting.addEventListener("click", goToBattle);
 
 // ---------- Title / Extras ----------
 
