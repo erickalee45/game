@@ -149,8 +149,8 @@ const ROSTER = [
 
 const DEFAULT_FIGHTER_ID = "neutrophil";
 
-const ENEMY_TEMPLATES = [
-  {
+const ENEMY_TEMPLATES = {
+  bacteriaVariant1: {
     name: "Opportunistic Bacterium",
     type: "bacteria",
     attackName: "Scratch",
@@ -166,20 +166,31 @@ const ENEMY_TEMPLATES = [
     },
     spriteSize: 96
   },
-  {
+  virusVariant1: {
     name: "Opportunistic Virus",
     type: "virus",
     attackName: "Infect",
     maxHp: 100,
     attackMin: 8,
-    attackMax: 18
+    attackMax: 18,
+    sprite: {
+      type: "animated",
+      frames: ["assets/virus/variant1-frame-0.png", "assets/virus/variant1-frame-1.png"],
+      frameDurationMs: 500
+    },
+    spriteSize: 96
   }
-];
+};
+
+// Regular Fight 1: guaranteed one bacterium then one virus (both variant 1, the
+// "normal" strain) so the player meets both enemy types and the weakness chart
+// risk-free before RNG variants (2 = weakened, 3 = resistant) start showing up.
+const ENCOUNTER_QUEUE = [ENEMY_TEMPLATES.bacteriaVariant1, ENEMY_TEMPLATES.virusVariant1];
+let encounterIndex = 0;
 
 let enemy;
 
-function spawnRandomEnemy() {
-  const template = ENEMY_TEMPLATES[Math.floor(Math.random() * ENEMY_TEMPLATES.length)];
+function spawnEnemyFromTemplate(template) {
   enemy = {
     name: template.name,
     type: template.type,
@@ -196,6 +207,18 @@ function spawnRandomEnemy() {
   };
   nameEnemy.textContent = enemy.name;
   renderEnemySprite(enemy);
+  snapHpTrail(enemy, hpBarTrailEnemy);
+}
+
+function spawnNextEncounter() {
+  const template = ENCOUNTER_QUEUE[encounterIndex];
+  encounterIndex++;
+  spawnEnemyFromTemplate(template);
+}
+
+function startEncounterQueue() {
+  encounterIndex = 0;
+  spawnNextEncounter();
 }
 
 const DEFAULT_MOVE_DESCRIPTION = "Hover or focus a move to see what it does.";
@@ -217,6 +240,7 @@ const battleDialoguePortrait = document.getElementById("battle-dialogue-portrait
 const moveDescription = document.getElementById("move-description");
 const moveButtonsEl = document.getElementById("move-buttons");
 const btnRestart = document.getElementById("btn-restart");
+const btnContinueCutscene2 = document.getElementById("btn-continue-cutscene2");
 const btnSwitch = document.getElementById("btn-switch");
 const switchPanel = document.getElementById("switch-panel");
 const spritePlayer = document.getElementById("sprite-player");
@@ -229,6 +253,7 @@ let activeFighterId = DEFAULT_FIGHTER_ID;
 let ctcAnimationTimer = null;
 let enemyAnimationTimer = null;
 let awaitingForcedSwitch = false;
+let awaitingCutsceneTransition = false;
 const moveButtons = [];
 
 function getActiveFighter() {
@@ -265,7 +290,17 @@ function advanceBattleDialogue() {
   step.apply();
   battleDialogueText.textContent = step.text;
   renderBattleDialoguePortrait(step.mood);
-  if (currentBattleStepIndex >= currentBattleSteps.length && !battleOver && !awaitingForcedSwitch) {
+
+  if (currentBattleStepIndex < currentBattleSteps.length) return;
+
+  if (awaitingCutsceneTransition) {
+    battleDialogueBox.hidden = true;
+    battleDialoguePortrait.hidden = true;
+    btnContinueCutscene2.hidden = false;
+    return;
+  }
+
+  if (!battleOver && !awaitingForcedSwitch) {
     const fighter = getActiveFighter();
     if (fighter.stunned) {
       fighter.stunned = false;
@@ -470,6 +505,37 @@ function endBattle() {
   btnRestart.style.display = "inline-block";
 }
 
+// Called once the last enemy in the encounter queue is defeated — instead of the
+// usual restart button, the VN narration box and portrait disappear entirely and
+// hand off to a "Continue to Cutscene" prompt (see advanceBattleDialogue()).
+function endBattleWithVictory() {
+  battleOver = true;
+  setMovesLocked(true);
+  awaitingCutsceneTransition = true;
+}
+
+function pushEnemyDefeatedSteps(steps, fighter) {
+  const hasNextEncounter = encounterIndex < ENCOUNTER_QUEUE.length;
+
+  steps.push({
+    text: `${enemy.name} is defeated. ${fighter.name} wins!`,
+    mood: "idle",
+    apply: hasNextEncounter ? () => {} : () => { endBattleWithVictory(); }
+  });
+
+  if (hasNextEncounter) {
+    const nextName = ENCOUNTER_QUEUE[encounterIndex].name;
+    steps.push({
+      text: `${nextName} appears!`,
+      mood: "idle",
+      apply: () => { spawnNextEncounter(); refreshDisplay(); }
+    });
+    steps.push({ text: `${fighter.name} is deciding...`, mood: "idle", apply: () => {} });
+  }
+
+  return steps;
+}
+
 function computePlayerDamage(fighter, move) {
   if (move.oneShotChance && Math.random() < move.oneShotChance) {
     return { damage: enemy.hp, isCrit: false, isOneShot: true, isNotVeryEffective: false };
@@ -532,12 +598,7 @@ function buildTurnSteps(fighter, move) {
   }
 
   if (enemyHpAfterMove <= 0) {
-    steps.push({
-      text: `${enemy.name} is defeated. ${fighter.name} wins!`,
-      mood: "idle",
-      apply: () => { endBattle(); }
-    });
-    return steps;
+    return pushEnemyDefeatedSteps(steps, fighter);
   }
 
   return appendEnemyTurnSteps(steps, fighter, enemyHpAfterMove, enemyBleedingAfterMove, enemyImmobilizedTurnsAfterMove);
@@ -632,12 +693,7 @@ function appendEnemyTurnSteps(steps, fighter, enemyHpAfterMove, enemyBleedingAft
     });
 
     if (enemyHpAfterCorrosive <= 0) {
-      steps.push({
-        text: `${enemy.name} is defeated. ${fighter.name} wins!`,
-        mood: "idle",
-        apply: () => { endBattle(); }
-      });
-      return steps;
+      return pushEnemyDefeatedSteps(steps, fighter);
     }
   }
 
@@ -654,12 +710,7 @@ function appendEnemyTurnSteps(steps, fighter, enemyHpAfterMove, enemyBleedingAft
     });
 
     if (enemyHpAfterBleed <= 0) {
-      steps.push({
-        text: `${enemy.name} is defeated. ${fighter.name} wins!`,
-        mood: "idle",
-        apply: () => { endBattle(); }
-      });
-      return steps;
+      return pushEnemyDefeatedSteps(steps, fighter);
     }
   }
 
@@ -679,7 +730,7 @@ function restartBattle() {
     fighter.hp = fighter.maxHp;
     fighter.stunned = false;
   });
-  spawnRandomEnemy();
+  startEncounterQueue();
   battleOver = false;
   activeFighterId = DEFAULT_FIGHTER_ID;
   awaitingForcedSwitch = false;
@@ -693,8 +744,12 @@ function restartBattle() {
 btnRestart.addEventListener("click", restartBattle);
 btnSwitch.addEventListener("click", toggleSwitchPanel);
 battleDialogueBox.addEventListener("click", advanceBattleDialogue);
+btnContinueCutscene2.addEventListener("click", () => {
+  battleScreenEl.hidden = true;
+  cutscene2Screen.hidden = false;
+});
 
-spawnRandomEnemy();
+startEncounterQueue();
 renderActiveFighter();
 setMovesLocked(true);
 runBattleSteps([{ text: "A new battle begins!", mood: "idle", apply: () => {} }]);
@@ -756,6 +811,7 @@ const SHOCK_EVENT_DELAY_MS = 500;
 
 const cutsceneScreen = document.getElementById("cutscene-screen");
 const cutsceneStageEl = document.getElementById("cutscene-stage");
+const cutscene2Screen = document.getElementById("cutscene2-screen");
 const battleScreenEl = document.getElementById("battle-screen");
 const dialoguePortrait = document.getElementById("dialogue-portrait");
 const dialogueBox = document.getElementById("dialogue-box");

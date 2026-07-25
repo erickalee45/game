@@ -25,6 +25,7 @@ body {
 
 #battle-screen[hidden],
 #cutscene-screen[hidden],
+#cutscene2-screen[hidden],
 #title-screen[hidden],
 #extras-screen[hidden] {
   display: none;
@@ -99,6 +100,36 @@ body {
 }
 
 #extras-content p {
+  width: 100%;
+  margin: 0;
+  background: var(--gradient-panel);
+  color: #fff;
+  border: 4px solid var(--border-white);
+  border-radius: 14px;
+  padding: 24px 20px;
+  text-align: center;
+  font-size: 15px;
+}
+
+/* ---------- Cutscene 2 (placeholder) ---------- */
+
+#cutscene2-screen {
+  position: fixed;
+  inset: 0;
+  background: var(--gradient-body);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+  padding: 16px;
+}
+
+#cutscene2-content {
+  width: 100%;
+  max-width: 480px;
+}
+
+#cutscene2-content p {
   width: 100%;
   margin: 0;
   background: var(--gradient-panel);
@@ -361,6 +392,42 @@ body {
   font-size: 11px;
   opacity: 0.75;
   text-align: right;
+}
+
+/* Takes the dialogue box's place once every encounter in the queue is defeated. */
+#btn-continue-cutscene2 {
+  position: absolute;
+  left: 50%;
+  bottom: 5%;
+  transform: translateX(-50%);
+  font-family: monospace;
+  background: var(--gradient-panel);
+  color: #fff;
+  border: 4px solid var(--border-white);
+  border-radius: 14px;
+  padding: 14px 20px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+
+#btn-continue-cutscene2[hidden] {
+  display: none;
+}
+
+#btn-continue-cutscene2:hover,
+#btn-continue-cutscene2:focus-visible {
+  background: #fff;
+  outline: none;
+}
+
+#btn-continue-cutscene2:hover span,
+#btn-continue-cutscene2:focus-visible span {
+  background-image: var(--gradient-panel);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
 }
 
 .fighter-panel {
