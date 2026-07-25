@@ -4,6 +4,7 @@ const ROSTER = [
     name: "Neutrophil",
     maxHp: 100,
     hp: 100,
+    stunned: false,
     attackMin: 10,
     attackMax: 20,
     sprite: {
@@ -49,8 +50,9 @@ const ROSTER = [
   {
     id: "macrophage",
     name: "Macrophage",
-    maxHp: 100,
-    hp: 100,
+    maxHp: 130,
+    hp: 130,
+    stunned: false,
     attackMin: 10,
     attackMax: 20,
     sprite: {
@@ -98,8 +100,9 @@ const ROSTER = [
   {
     id: "ctc",
     name: "Cytotoxic T Cell",
-    maxHp: 100,
-    hp: 100,
+    maxHp: 110,
+    hp: 110,
+    stunned: false,
     attackMin: 10,
     attackMax: 20,
     sprite: {
@@ -114,9 +117,7 @@ const ROSTER = [
     // "idle" here is the battle-facing pose (forward, toward the enemy) — the true idle
     // pose is cutscene-only now and lives in CUTSCENE_CHARACTERS.ctc.portrait instead.
     portrait: { idle: "assets/ctc/battle-portrait.png", hurt: "assets/ctc/hurt-portrait.png" },
-    // Unshaken: resistant to flinch/stun. No move in the game currently inflicts
-    // either on the player, so this flag has no observable effect yet — it's here
-    // so it's ready once a stunning enemy/boss move exists.
+    // Unshaken: fully immune to stun (bacteria's chance to skip the player's turn).
     passive: { type: "unshaken" },
     moves: [
       {
@@ -155,7 +156,15 @@ const ENEMY_TEMPLATES = [
     attackName: "Scratch",
     maxHp: 100,
     attackMin: 8,
-    attackMax: 18
+    attackMax: 18,
+    // Bacteria can stun on hit, skipping the player's next turn entirely.
+    canStun: true,
+    sprite: {
+      type: "animated",
+      frames: ["assets/bacteria/variant1-frame-0.png", "assets/bacteria/variant1-frame-1.png"],
+      frameDurationMs: 500
+    },
+    spriteSize: 96
   },
   {
     name: "Opportunistic Virus",
@@ -179,15 +188,20 @@ function spawnRandomEnemy() {
     hp: template.maxHp,
     attackMin: template.attackMin,
     attackMax: template.attackMax,
+    canStun: template.canStun ?? false,
+    sprite: template.sprite ?? null,
+    spriteSize: template.spriteSize ?? 96,
     bleeding: false,
     immobilizedTurns: 0
   };
   nameEnemy.textContent = enemy.name;
+  renderEnemySprite(enemy);
 }
 
 const DEFAULT_MOVE_DESCRIPTION = "Hover or focus a move to see what it does.";
 const BLEED_PERCENT = 0.1;
 const IMMOBILIZED_DAMAGE_MULTIPLIER = 0.3;
+const STUN_CHANCE = 0.35;
 
 const nameEnemy = document.getElementById("name-enemy");
 const namePlayer = document.getElementById("name-player");
@@ -208,10 +222,12 @@ const switchPanel = document.getElementById("switch-panel");
 const spritePlayer = document.getElementById("sprite-player");
 const spritePlayerImg = document.getElementById("sprite-player-img");
 const spriteEnemy = document.getElementById("sprite-enemy");
+const spriteEnemyImg = document.getElementById("sprite-enemy-img");
 
 let battleOver = false;
 let activeFighterId = DEFAULT_FIGHTER_ID;
 let ctcAnimationTimer = null;
+let enemyAnimationTimer = null;
 let awaitingForcedSwitch = false;
 const moveButtons = [];
 
@@ -250,7 +266,13 @@ function advanceBattleDialogue() {
   battleDialogueText.textContent = step.text;
   renderBattleDialoguePortrait(step.mood);
   if (currentBattleStepIndex >= currentBattleSteps.length && !battleOver && !awaitingForcedSwitch) {
-    setMovesLocked(false);
+    const fighter = getActiveFighter();
+    if (fighter.stunned) {
+      fighter.stunned = false;
+      runBattleSteps(buildStunnedTurnSteps(fighter));
+    } else {
+      setMovesLocked(false);
+    }
   }
 }
 
@@ -381,6 +403,31 @@ function renderSprite(fighter) {
   }
 }
 
+function renderEnemySprite(enemyData) {
+  if (enemyAnimationTimer) {
+    clearInterval(enemyAnimationTimer);
+    enemyAnimationTimer = null;
+  }
+
+  spriteEnemy.style.width = enemyData.spriteSize + "px";
+  spriteEnemy.style.height = enemyData.spriteSize + "px";
+
+  if (enemyData.sprite?.type === "animated") {
+    spriteEnemy.classList.add("has-art");
+    spriteEnemyImg.hidden = false;
+    let frameIndex = 0;
+    spriteEnemyImg.src = enemyData.sprite.frames[frameIndex];
+    enemyAnimationTimer = setInterval(() => {
+      frameIndex = (frameIndex + 1) % enemyData.sprite.frames.length;
+      spriteEnemyImg.src = enemyData.sprite.frames[frameIndex];
+    }, enemyData.sprite.frameDurationMs);
+  } else {
+    spriteEnemy.classList.remove("has-art");
+    spriteEnemyImg.hidden = true;
+    spriteEnemyImg.src = "";
+  }
+}
+
 function showMoveDescription(move) {
   moveDescription.textContent = `"${move.description}"`;
 }
@@ -493,6 +540,22 @@ function buildTurnSteps(fighter, move) {
     return steps;
   }
 
+  return appendEnemyTurnSteps(steps, fighter, enemyHpAfterMove, enemyBleedingAfterMove, enemyImmobilizedTurnsAfterMove);
+}
+
+// A stunned fighter skips their move entirely — this builds a turn that starts
+// straight from the enemy's side, using whatever state the enemy already has
+// (no player action happened this turn to change it).
+function buildStunnedTurnSteps(fighter) {
+  const steps = [{
+    text: `${fighter.name} is stunned and can't move!`,
+    mood: "idle",
+    apply: () => {}
+  }];
+  return appendEnemyTurnSteps(steps, fighter, enemy.hp, enemy.bleeding, enemy.immobilizedTurns);
+}
+
+function appendEnemyTurnSteps(steps, fighter, enemyHpAfterMove, enemyBleedingAfterMove, enemyImmobilizedTurnsAfterMove) {
   // ---- Enemy's turn ----
   steps.push({ text: `${enemy.name} is deciding...`, mood: "idle", apply: () => {} });
 
@@ -510,6 +573,10 @@ function buildTurnSteps(fighter, move) {
   }
 
   const fighterHpAfterAttack = fighter.hp - enemyDamage;
+
+  // Unshaken makes CTC fully immune to stun — the roll never even happens for him.
+  const isStunImmune = fighter.passive?.type === "unshaken";
+  const stunTriggered = enemy.canStun && !isStunImmune && Math.random() < STUN_CHANCE;
 
   if (tankTriggered) {
     steps.push({ text: `${fighter.name}'s Tank reduces the hit!`, mood: "idle", apply: () => {} });
@@ -542,6 +609,14 @@ function buildTurnSteps(fighter, move) {
       });
     }
     return steps;
+  }
+
+  if (stunTriggered) {
+    steps.push({
+      text: `${fighter.name} is stunned and will miss their next move!`,
+      mood: "hurt",
+      apply: () => { fighter.stunned = true; }
+    });
   }
 
   // ---- Corrosive Blood ----
@@ -602,6 +677,7 @@ function useMove(fighter, move) {
 function restartBattle() {
   ROSTER.forEach((fighter) => {
     fighter.hp = fighter.maxHp;
+    fighter.stunned = false;
   });
   spawnRandomEnemy();
   battleOver = false;
