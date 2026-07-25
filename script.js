@@ -104,6 +104,9 @@ const ROSTER = [
     spriteSize: 106,
     type: "adaptive",
     weakAgainst: ["bacteria"],
+    // Idle is used for both the cutscene and every battle moment except taking a hit.
+    // Hurt is battle-only, shown just when this fighter is on the receiving end of damage.
+    portrait: { idle: "assets/ctc/idle-portrait.png", hurt: "assets/ctc/hurt-portrait.png" },
     // Unshaken: resistant to flinch/stun. No move in the game currently inflicts
     // either on the player, so this flag has no observable effect yet — it's here
     // so it's ready once a stunning enemy/boss move exists.
@@ -175,10 +178,6 @@ function spawnRandomEnemy() {
   nameEnemy.textContent = enemy.name;
 }
 
-const ENEMY_THINK_DELAY_MIN_MS = 1000;
-const ENEMY_THINK_DELAY_MAX_MS = 2000;
-const BLEED_DELAY_MIN_MS = 500;
-const BLEED_DELAY_MAX_MS = 1000;
 const DEFAULT_MOVE_DESCRIPTION = "Hover or focus a move to see what it does.";
 const BLEED_PERCENT = 0.1;
 const IMMOBILIZED_DAMAGE_MULTIPLIER = 0.3;
@@ -191,7 +190,9 @@ const hpTextPlayer = document.getElementById("hp-text-player");
 const hpBarEnemy = document.getElementById("hp-bar-enemy");
 const hpBarTrailEnemy = document.getElementById("hp-bar-trail-enemy");
 const hpTextEnemy = document.getElementById("hp-text-enemy");
-const narrationBox = document.getElementById("narration-box");
+const battleDialogueBox = document.getElementById("battle-dialogue-box");
+const battleDialogueText = document.getElementById("battle-dialogue-text");
+const battleDialoguePortrait = document.getElementById("battle-dialogue-portrait");
 const moveDescription = document.getElementById("move-description");
 const moveButtonsEl = document.getElementById("move-buttons");
 const btnRestart = document.getElementById("btn-restart");
@@ -215,10 +216,35 @@ function randomDamage(fighter) {
   return Math.floor(Math.random() * (fighter.attackMax - fighter.attackMin + 1)) + fighter.attackMin;
 }
 
-function logMessage(text) {
-  const entry = document.createElement("div");
-  entry.textContent = text;
-  narrationBox.prepend(entry);
+let currentBattleSteps = [];
+let currentBattleStepIndex = 0;
+
+function renderBattleDialoguePortrait(mood) {
+  const src = getActiveFighter().portrait?.[mood || "idle"];
+  if (src) {
+    battleDialoguePortrait.src = src;
+    battleDialoguePortrait.hidden = false;
+  } else {
+    battleDialoguePortrait.hidden = true;
+  }
+}
+
+function runBattleSteps(steps) {
+  currentBattleSteps = steps;
+  currentBattleStepIndex = 0;
+  advanceBattleDialogue();
+}
+
+function advanceBattleDialogue() {
+  if (currentBattleStepIndex >= currentBattleSteps.length) return;
+  const step = currentBattleSteps[currentBattleStepIndex];
+  currentBattleStepIndex++;
+  step.apply();
+  battleDialogueText.textContent = step.text;
+  renderBattleDialoguePortrait(step.mood);
+  if (currentBattleStepIndex >= currentBattleSteps.length && !battleOver && !awaitingForcedSwitch) {
+    setMovesLocked(false);
+  }
 }
 
 function flashDamage(spriteEl) {
@@ -321,7 +347,6 @@ function beginForcedSwitch(fallenFighter) {
   btnSwitch.hidden = true;
   switchPanel.hidden = false;
   rebuildSwitchPanel();
-  logMessage(`${fallenFighter.name} has fallen! Choose another fighter.`);
 }
 
 function renderSprite(fighter) {
@@ -385,12 +410,10 @@ function renderActiveFighter() {
   refreshDisplay();
 }
 
-function endBattle(didPlayerWin) {
+function endBattle() {
   battleOver = true;
   setMovesLocked(true);
   btnRestart.style.display = "inline-block";
-  const fighter = getActiveFighter();
-  logMessage(didPlayerWin ? `${enemy.name} is defeated. ${fighter.name} wins!` : `${fighter.name} is defeated. ${enemy.name} wins!`);
 }
 
 function computePlayerDamage(fighter, move) {
@@ -417,105 +440,154 @@ function computePlayerDamage(fighter, move) {
   return { damage: Math.max(1, Math.round(roll)), isCrit, isOneShot: false, isNotVeryEffective };
 }
 
-function useMove(fighter, move) {
-  if (battleOver) return;
+function buildTurnSteps(fighter, move) {
+  const steps = [];
 
-  setMovesLocked(true);
-
+  // ---- Player's move ----
   const { damage: playerDamage, isCrit, isOneShot, isNotVeryEffective } = computePlayerDamage(fighter, move);
-  enemy.hp -= playerDamage;
-  flashDamage(spriteEnemy);
+  const enemyHpAfterMove = enemy.hp - playerDamage;
   const hitSuffix = isOneShot ? " — finishing them off" : isCrit ? " (critical hit!)" : "";
-  logMessage(`${fighter.name} uses ${move.name} on ${enemy.name} for ${playerDamage} damage${hitSuffix}.`);
+  steps.push({
+    text: `${fighter.name} uses ${move.name} on ${enemy.name} for ${playerDamage} damage${hitSuffix}.`,
+    mood: "idle",
+    apply: () => { enemy.hp = enemyHpAfterMove; flashDamage(spriteEnemy); refreshDisplay(); }
+  });
 
   if (isNotVeryEffective) {
-    logMessage("But it doesn't seem very effective...");
+    steps.push({ text: "But it doesn't seem very effective...", mood: "idle", apply: () => {} });
   }
 
+  let enemyBleedingAfterMove = enemy.bleeding;
   if (move.appliesBleed) {
-    enemy.bleeding = true;
-    logMessage(`${enemy.name} is bleeding!`);
+    enemyBleedingAfterMove = true;
+    steps.push({
+      text: `${enemy.name} is bleeding!`,
+      mood: "idle",
+      apply: () => { enemy.bleeding = true; }
+    });
   }
 
+  let enemyImmobilizedTurnsAfterMove = enemy.immobilizedTurns;
   if (move.immobilizeChance && Math.random() < move.immobilizeChance) {
-    enemy.immobilizedTurns = 2;
-    logMessage(`${enemy.name} is immobilized!`);
+    enemyImmobilizedTurnsAfterMove = 2;
+    steps.push({
+      text: `${enemy.name} is immobilized!`,
+      mood: "idle",
+      apply: () => { enemy.immobilizedTurns = 2; }
+    });
   }
 
-  refreshDisplay();
-
-  if (enemy.hp <= 0) {
-    endBattle(true);
-    return;
+  if (enemyHpAfterMove <= 0) {
+    steps.push({
+      text: `${enemy.name} is defeated. ${fighter.name} wins!`,
+      mood: "idle",
+      apply: () => { endBattle(); }
+    });
+    return steps;
   }
 
-  logMessage(`${enemy.name} is deciding...`);
+  // ---- Enemy's turn ----
+  steps.push({ text: `${enemy.name} is deciding...`, mood: "idle", apply: () => {} });
 
-  const thinkDelay = ENEMY_THINK_DELAY_MIN_MS + Math.random() * (ENEMY_THINK_DELAY_MAX_MS - ENEMY_THINK_DELAY_MIN_MS);
-  setTimeout(() => {
-    let enemyDamage = randomDamage(enemy);
-    if (enemy.immobilizedTurns > 0) {
-      enemyDamage = Math.max(1, Math.round(enemyDamage * IMMOBILIZED_DAMAGE_MULTIPLIER));
-      enemy.immobilizedTurns -= 1;
-    }
+  let enemyDamage = randomDamage(enemy);
+  let immobilizedTurnsAfterAttack = enemyImmobilizedTurnsAfterMove;
+  if (enemyImmobilizedTurnsAfterMove > 0) {
+    enemyDamage = Math.max(1, Math.round(enemyDamage * IMMOBILIZED_DAMAGE_MULTIPLIER));
+    immobilizedTurnsAfterAttack = enemyImmobilizedTurnsAfterMove - 1;
+  }
 
-    if (fighter.passive?.type === "tank" && Math.random() < fighter.passive.chance) {
-      enemyDamage = Math.max(1, Math.round(enemyDamage * (1 - fighter.passive.reduction)));
-      logMessage(`${fighter.name}'s Tank reduces the hit!`);
-    }
+  let tankTriggered = false;
+  if (fighter.passive?.type === "tank" && Math.random() < fighter.passive.chance) {
+    enemyDamage = Math.max(1, Math.round(enemyDamage * (1 - fighter.passive.reduction)));
+    tankTriggered = true;
+  }
 
-    fighter.hp -= enemyDamage;
-    flashDamage(spritePlayer);
-    logMessage(`${enemy.name} uses ${enemy.attackName} on ${fighter.name} for ${enemyDamage} damage.`);
-    refreshDisplay();
+  const fighterHpAfterAttack = fighter.hp - enemyDamage;
 
-    if (fighter.hp <= 0) {
-      const hasHealthyTeammate = ROSTER.some((other) => other.id !== fighter.id && other.hp > 0);
-      if (hasHealthyTeammate) {
-        beginForcedSwitch(fighter);
-      } else {
-        endBattle(false);
-      }
-      return;
-    }
+  if (tankTriggered) {
+    steps.push({ text: `${fighter.name}'s Tank reduces the hit!`, mood: "idle", apply: () => {} });
+  }
 
-    if (fighter.passive?.type === "corrosiveBlood") {
-      const reflectPercent = fighter.passive.minPercent + Math.random() * (fighter.passive.maxPercent - fighter.passive.minPercent);
-      const reflectDamage = Math.max(1, Math.round(enemy.maxHp * reflectPercent));
-      enemy.hp -= reflectDamage;
-      flashDamage(spriteEnemy);
-      logMessage(`${fighter.name}'s Corrosive Blood deals ${reflectDamage} damage to ${enemy.name}.`);
+  steps.push({
+    text: `${enemy.name} uses ${enemy.attackName} on ${fighter.name} for ${enemyDamage} damage.`,
+    mood: "hurt",
+    apply: () => {
+      fighter.hp = fighterHpAfterAttack;
+      enemy.immobilizedTurns = immobilizedTurnsAfterAttack;
+      flashDamage(spritePlayer);
       refreshDisplay();
-
-      if (enemy.hp <= 0) {
-        endBattle(true);
-        return;
-      }
     }
+  });
 
-    if (enemy.bleeding) {
-      logMessage(`${enemy.name} is bleeding out...`);
-      const bleedDelay = BLEED_DELAY_MIN_MS + Math.random() * (BLEED_DELAY_MAX_MS - BLEED_DELAY_MIN_MS);
-      setTimeout(() => {
-        const bleedDamage = Math.max(1, Math.round(enemy.maxHp * BLEED_PERCENT));
-        enemy.hp -= bleedDamage;
-        enemy.bleeding = false;
-        flashDamage(spriteEnemy);
-        logMessage(`${enemy.name} takes ${bleedDamage} bleed damage.`);
-        refreshDisplay();
-
-        if (enemy.hp <= 0) {
-          endBattle(true);
-          return;
-        }
-
-        setMovesLocked(false);
-      }, bleedDelay);
-      return;
+  if (fighterHpAfterAttack <= 0) {
+    const hasHealthyTeammate = ROSTER.some((other) => other.id !== fighter.id && other.hp > 0);
+    if (hasHealthyTeammate) {
+      steps.push({
+        text: `${fighter.name} has fallen! Choose another fighter.`,
+        mood: "hurt",
+        apply: () => { beginForcedSwitch(fighter); }
+      });
+    } else {
+      steps.push({
+        text: `${fighter.name} is defeated. ${enemy.name} wins!`,
+        mood: "hurt",
+        apply: () => { endBattle(); }
+      });
     }
+    return steps;
+  }
 
-    setMovesLocked(false);
-  }, thinkDelay);
+  // ---- Corrosive Blood ----
+  let enemyHpAfterCorrosive = enemyHpAfterMove;
+  if (fighter.passive?.type === "corrosiveBlood") {
+    const reflectPercent = fighter.passive.minPercent + Math.random() * (fighter.passive.maxPercent - fighter.passive.minPercent);
+    const reflectDamage = Math.max(1, Math.round(enemy.maxHp * reflectPercent));
+    enemyHpAfterCorrosive = enemyHpAfterMove - reflectDamage;
+    steps.push({
+      text: `${fighter.name}'s Corrosive Blood deals ${reflectDamage} damage to ${enemy.name}.`,
+      mood: "idle",
+      apply: () => { enemy.hp = enemyHpAfterCorrosive; flashDamage(spriteEnemy); refreshDisplay(); }
+    });
+
+    if (enemyHpAfterCorrosive <= 0) {
+      steps.push({
+        text: `${enemy.name} is defeated. ${fighter.name} wins!`,
+        mood: "idle",
+        apply: () => { endBattle(); }
+      });
+      return steps;
+    }
+  }
+
+  // ---- Bleed ----
+  if (enemyBleedingAfterMove) {
+    steps.push({ text: `${enemy.name} is bleeding out...`, mood: "idle", apply: () => {} });
+
+    const bleedDamage = Math.max(1, Math.round(enemy.maxHp * BLEED_PERCENT));
+    const enemyHpAfterBleed = enemyHpAfterCorrosive - bleedDamage;
+    steps.push({
+      text: `${enemy.name} takes ${bleedDamage} bleed damage.`,
+      mood: "idle",
+      apply: () => { enemy.hp = enemyHpAfterBleed; enemy.bleeding = false; flashDamage(spriteEnemy); refreshDisplay(); }
+    });
+
+    if (enemyHpAfterBleed <= 0) {
+      steps.push({
+        text: `${enemy.name} is defeated. ${fighter.name} wins!`,
+        mood: "idle",
+        apply: () => { endBattle(); }
+      });
+      return steps;
+    }
+  }
+
+  return steps;
+}
+
+function useMove(fighter, move) {
+  if (battleOver) return;
+  setMovesLocked(true);
+  runBattleSteps(buildTurnSteps(fighter, move));
 }
 
 function restartBattle() {
@@ -528,29 +600,31 @@ function restartBattle() {
   awaitingForcedSwitch = false;
   btnSwitch.hidden = false;
   btnRestart.style.display = "none";
-  narrationBox.innerHTML = "";
-  logMessage("A new battle begins!");
   renderActiveFighter();
-  setMovesLocked(false);
+  setMovesLocked(true);
+  runBattleSteps([{ text: "A new battle begins!", mood: "idle", apply: () => {} }]);
 }
 
 btnRestart.addEventListener("click", restartBattle);
 btnSwitch.addEventListener("click", toggleSwitchPanel);
+battleDialogueBox.addEventListener("click", advanceBattleDialogue);
 
 spawnRandomEnemy();
 renderActiveFighter();
-logMessage("A new battle begins!");
+setMovesLocked(true);
+runBattleSteps([{ text: "A new battle begins!", mood: "idle", apply: () => {} }]);
 
 // ---------- Cutscene ----------
 
 const CUTSCENE_CHARACTERS = {
   neutrophil: { name: "Neutrophil", lines: ["[placeholder]"], lineIndex: 0, read: false },
   macrophage: { name: "Macrophage", lines: ["[placeholder]"], lineIndex: 0, read: false },
-  ctc: { name: "Cytotoxic T Cell", lines: ["[placeholder]"], lineIndex: 0, read: false }
+  ctc: { name: "Cytotoxic T Cell", lines: ["[placeholder]"], lineIndex: 0, read: false, portrait: "assets/ctc/idle-portrait.png" }
 };
 
 const cutsceneScreen = document.getElementById("cutscene-screen");
 const battleScreenEl = document.getElementById("battle-screen");
+const dialoguePortrait = document.getElementById("dialogue-portrait");
 const dialogueBox = document.getElementById("dialogue-box");
 const dialogueSpeaker = document.getElementById("dialogue-speaker");
 const dialogueText = document.getElementById("dialogue-text");
@@ -581,6 +655,12 @@ function openDialogue(charId) {
   const character = CUTSCENE_CHARACTERS[charId];
   dialogueSpeaker.textContent = character.name;
   dialogueText.textContent = character.lines[character.lineIndex];
+  if (character.portrait) {
+    dialoguePortrait.src = character.portrait;
+    dialoguePortrait.hidden = false;
+  } else {
+    dialoguePortrait.hidden = true;
+  }
   dialogueBox.hidden = false;
   hideAllBubbles();
 

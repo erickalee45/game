@@ -23,14 +23,6 @@ body {
   padding: 40px 16px;
 }
 
-#battle-screen {
-  width: 100%;
-  max-width: 640px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
 #battle-screen[hidden],
 #cutscene-screen[hidden],
 #title-screen[hidden],
@@ -203,6 +195,9 @@ body {
   left: 3%;
   right: 3%;
   bottom: 3%;
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
   background: var(--gradient-panel);
   color: #fff;
   border: 4px solid var(--border-white);
@@ -212,6 +207,24 @@ body {
 }
 
 #dialogue-box[hidden] {
+  display: none;
+}
+
+#dialogue-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.dialogue-portrait {
+  height: 160px;
+  width: auto;
+  max-width: 40%;
+  object-fit: contain;
+  image-rendering: pixelated;
+  flex-shrink: 0;
+}
+
+.dialogue-portrait[hidden] {
   display: none;
 }
 
@@ -309,26 +322,60 @@ body {
   -webkit-text-fill-color: transparent;
 }
 
-#narration-box {
-  width: 100%;
-  background: var(--gradient-panel);
-  color: #fff;
-  border: 4px solid var(--border-white);
-  border-radius: 14px;
-  padding: 10px;
-  height: 110px;
-  overflow-y: auto;
-  font-size: 14px;
+/* ---------- Battle ---------- */
+
+#battle-screen {
+  position: fixed;
+  inset: 0;
+  background-image: url("assets/battle_background.png");
+  background-size: cover;
+  background-position: center;
   display: flex;
-  flex-direction: column-reverse;
+  align-items: flex-start;
+  justify-content: center;
+  z-index: 5;
+  padding: 24px;
 }
 
 #battle-stage {
   width: 100%;
+  max-width: 640px;
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
   gap: 12px;
+}
+
+#battle-dialogue-box {
+  position: absolute;
+  left: 3%;
+  right: 3%;
+  bottom: 3%;
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  background: var(--gradient-panel);
+  color: #fff;
+  border: 4px solid var(--border-white);
+  border-radius: 14px;
+  padding: 14px 16px;
+  cursor: pointer;
+}
+
+#battle-dialogue-content {
+  flex: 1;
+  min-width: 0;
+}
+
+#battle-dialogue-text {
+  font-size: 14px;
+}
+
+#battle-dialogue-hint {
+  margin-top: 8px;
+  font-size: 11px;
+  opacity: 0.75;
+  text-align: right;
 }
 
 .fighter-panel {
@@ -502,6 +549,9 @@ body {
 }
 
 #btn-restart {
+  position: absolute;
+  top: 20px;
+  right: 20px;
   font-family: monospace;
   background: var(--gradient-panel);
   color: #fff;
@@ -510,7 +560,6 @@ body {
   padding: 10px 16px;
   font-size: 14px;
   cursor: pointer;
-  align-self: flex-start;
   transition: background 0.1s, color 0.1s;
 }
 
