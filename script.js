@@ -540,3 +540,99 @@ btnSwitch.addEventListener("click", toggleSwitchPanel);
 spawnRandomEnemy();
 renderActiveFighter();
 logMessage("A new battle begins!");
+
+// ---------- Cutscene ----------
+
+const CUTSCENE_CHARACTERS = {
+  neutrophil: { name: "Neutrophil", lines: ["[placeholder]"], lineIndex: 0, read: false },
+  macrophage: { name: "Macrophage", lines: ["[placeholder]"], lineIndex: 0, read: false },
+  ctc: { name: "Cytotoxic T Cell", lines: ["[placeholder]"], lineIndex: 0, read: false }
+};
+
+const cutsceneScreen = document.getElementById("cutscene-screen");
+const battleScreenEl = document.getElementById("battle-screen");
+const dialogueBox = document.getElementById("dialogue-box");
+const dialogueSpeaker = document.getElementById("dialogue-speaker");
+const dialogueText = document.getElementById("dialogue-text");
+const btnContinueFighting = document.getElementById("btn-continue-fighting");
+const dialogueWarningModal = document.getElementById("dialogue-warning-modal");
+const btnWarningYes = document.getElementById("btn-warning-yes");
+const btnWarningNo = document.getElementById("btn-warning-no");
+
+const cutsceneBubbles = {
+  neutrophil: document.getElementById("bubble-neutrophil"),
+  macrophage: document.getElementById("bubble-macrophage"),
+  ctc: document.getElementById("bubble-ctc")
+};
+
+const cutsceneHotspots = {
+  neutrophil: document.getElementById("hotspot-neutrophil"),
+  macrophage: document.getElementById("hotspot-macrophage"),
+  ctc: document.getElementById("hotspot-ctc")
+};
+
+function hideAllBubbles() {
+  Object.values(cutsceneBubbles).forEach((bubble) => {
+    bubble.hidden = true;
+  });
+}
+
+function openDialogue(charId) {
+  const character = CUTSCENE_CHARACTERS[charId];
+  dialogueSpeaker.textContent = character.name;
+  dialogueText.textContent = character.lines[character.lineIndex];
+  dialogueBox.hidden = false;
+  hideAllBubbles();
+
+  character.lineIndex++;
+  if (character.lineIndex >= character.lines.length) {
+    character.read = true;
+    character.lineIndex = 0;
+  }
+}
+
+function closeDialogue() {
+  dialogueBox.hidden = true;
+}
+
+function allDialogueRead() {
+  return Object.values(CUTSCENE_CHARACTERS).every((character) => character.read);
+}
+
+function goToBattle() {
+  dialogueWarningModal.hidden = true;
+  cutsceneScreen.hidden = true;
+  battleScreenEl.hidden = false;
+}
+
+Object.entries(cutsceneHotspots).forEach(([charId, hotspot]) => {
+  const bubble = cutsceneBubbles[charId];
+  hotspot.addEventListener("mouseenter", () => {
+    bubble.hidden = false;
+  });
+  hotspot.addEventListener("focus", () => {
+    bubble.hidden = false;
+  });
+  hotspot.addEventListener("mouseleave", () => {
+    bubble.hidden = true;
+  });
+  hotspot.addEventListener("blur", () => {
+    bubble.hidden = true;
+  });
+  hotspot.addEventListener("click", () => openDialogue(charId));
+});
+
+dialogueBox.addEventListener("click", closeDialogue);
+
+btnContinueFighting.addEventListener("click", () => {
+  if (allDialogueRead()) {
+    goToBattle();
+  } else {
+    dialogueWarningModal.hidden = false;
+  }
+});
+
+btnWarningYes.addEventListener("click", goToBattle);
+btnWarningNo.addEventListener("click", () => {
+  dialogueWarningModal.hidden = true;
+});
