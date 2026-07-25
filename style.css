@@ -32,8 +32,90 @@ body {
 }
 
 #battle-screen[hidden],
-#cutscene-screen[hidden] {
+#cutscene-screen[hidden],
+#title-screen[hidden],
+#extras-screen[hidden] {
   display: none;
+}
+
+/* ---------- Title / Extras ---------- */
+
+#title-screen,
+#extras-screen {
+  position: fixed;
+  inset: 0;
+  background: var(--gradient-body);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+  padding: 16px;
+}
+
+#title-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 280px;
+}
+
+#btn-new-game,
+#btn-extras,
+#btn-extras-back {
+  font-family: monospace;
+  background: var(--gradient-panel);
+  color: #fff;
+  border: 4px solid var(--border-white);
+  border-radius: 10px;
+  padding: 14px 20px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+
+#btn-new-game:hover,
+#btn-new-game:focus-visible,
+#btn-extras:hover,
+#btn-extras:focus-visible,
+#btn-extras-back:hover,
+#btn-extras-back:focus-visible {
+  background: #fff;
+  outline: none;
+}
+
+#btn-new-game:hover span,
+#btn-new-game:focus-visible span,
+#btn-extras:hover span,
+#btn-extras:focus-visible span,
+#btn-extras-back:hover span,
+#btn-extras-back:focus-visible span {
+  background-image: var(--gradient-panel);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+#extras-content {
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+#extras-content p {
+  width: 100%;
+  margin: 0;
+  background: var(--gradient-panel);
+  color: #fff;
+  border: 4px solid var(--border-white);
+  border-radius: 14px;
+  padding: 24px 20px;
+  text-align: center;
+  font-size: 15px;
 }
 
 /* ---------- Cutscene ---------- */

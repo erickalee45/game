@@ -636,3 +636,26 @@ btnWarningYes.addEventListener("click", goToBattle);
 btnWarningNo.addEventListener("click", () => {
   dialogueWarningModal.hidden = true;
 });
+
+// ---------- Title / Extras ----------
+
+const titleScreen = document.getElementById("title-screen");
+const extrasScreen = document.getElementById("extras-screen");
+const btnNewGame = document.getElementById("btn-new-game");
+const btnExtras = document.getElementById("btn-extras");
+const btnExtrasBack = document.getElementById("btn-extras-back");
+
+btnNewGame.addEventListener("click", () => {
+  titleScreen.hidden = true;
+  cutsceneScreen.hidden = false;
+});
+
+btnExtras.addEventListener("click", () => {
+  titleScreen.hidden = true;
+  extrasScreen.hidden = false;
+});
+
+btnExtrasBack.addEventListener("click", () => {
+  extrasScreen.hidden = true;
+  titleScreen.hidden = false;
+});
