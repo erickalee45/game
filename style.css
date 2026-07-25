@@ -212,15 +212,24 @@ body {
   position: absolute;
   left: 3%;
   bottom: 0;
-  /* Scales with whichever grows the view more: a wide, short browser window
-     (going from a split pane to full width) needs the vw term to keep the
-     character from shrinking relative to all the new horizontal space. */
-  height: clamp(240px, max(46vh, 26vw), 60vh);
   width: auto;
   object-fit: contain;
   image-rendering: pixelated;
   pointer-events: none;
   z-index: 2;
+}
+
+/* Cutscene: sized relative to the letterboxed stage itself, VN-style —
+   nearly as tall as the scene, regardless of window shape. */
+#dialogue-portrait {
+  height: 85%;
+}
+
+/* Battle: the fighter panel (name/HP/sprite/switch button) is a fixed
+   260px tall regardless of viewport size, so grow the portrait to just
+   about reach the Switch Character button without covering it. */
+#battle-dialogue-portrait {
+  height: max(200px, calc(100vh - 290px));
 }
 
 .dialogue-portrait[hidden] {
