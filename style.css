@@ -7,8 +7,8 @@ html, body {
 }
 
 :root {
-  --gradient-body: linear-gradient(135deg, #e2434f 0%, #ff8a8f 100%);
-  --gradient-panel: linear-gradient(180deg, #e63946 0%, #ff6b6f 100%);
+  --gradient-body: linear-gradient(135deg, #5c1016 0%, #8a2530 100%);
+  --gradient-panel: linear-gradient(180deg, #6e151d 0%, #9c2b32 100%);
   --border-white: #ffffff;
   --text-dark: #4a1220;
 }
@@ -192,12 +192,10 @@ body {
 
 #dialogue-box {
   position: absolute;
-  left: 3%;
+  left: 22%;
   right: 3%;
   bottom: 3%;
-  display: flex;
-  align-items: flex-end;
-  gap: 14px;
+  z-index: 1;
   background: var(--gradient-panel);
   color: #fff;
   border: 4px solid var(--border-white);
@@ -210,18 +208,17 @@ body {
   display: none;
 }
 
-#dialogue-content {
-  flex: 1;
-  min-width: 0;
-}
-
 .dialogue-portrait {
-  height: 160px;
+  position: absolute;
+  left: 3%;
+  bottom: 0;
+  height: 46vh;
+  max-height: 420px;
   width: auto;
-  max-width: 40%;
   object-fit: contain;
   image-rendering: pixelated;
-  flex-shrink: 0;
+  pointer-events: none;
+  z-index: 2;
 }
 
 .dialogue-portrait[hidden] {
@@ -348,23 +345,16 @@ body {
 
 #battle-dialogue-box {
   position: absolute;
-  left: 3%;
+  left: 22%;
   right: 3%;
   bottom: 3%;
-  display: flex;
-  align-items: flex-end;
-  gap: 14px;
+  z-index: 1;
   background: var(--gradient-panel);
   color: #fff;
   border: 4px solid var(--border-white);
   border-radius: 14px;
   padding: 14px 16px;
   cursor: pointer;
-}
-
-#battle-dialogue-content {
-  flex: 1;
-  min-width: 0;
 }
 
 #battle-dialogue-text {
@@ -390,6 +380,7 @@ body {
   font-weight: bold;
   text-align: center;
   font-size: 14px;
+  color: #fff;
 }
 
 .hp-bar-outer {
@@ -427,6 +418,7 @@ body {
 
 .hp-text {
   font-size: 12px;
+  color: #fff;
 }
 
 .sprite-placeholder {
