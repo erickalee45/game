@@ -15,6 +15,9 @@ const ROSTER = [
     spriteSize: 96,
     type: "phagocyte",
     weakAgainst: ["virus"],
+    // "idle" here is the battle-facing pose (forward, toward the enemy) — the true idle
+    // pose is cutscene-only now and lives in CUTSCENE_CHARACTERS.neutrophil.portrait instead.
+    portrait: { idle: "assets/neutrophil/battle-portrait.png", hurt: "assets/neutrophil/hurt-portrait.png" },
     // Corrosive Blood: after an enemy attacks him, reflect ~3-5% of the enemy's max HP back.
     passive: { type: "corrosiveBlood", minPercent: 0.03, maxPercent: 0.05 },
     moves: [
@@ -104,9 +107,9 @@ const ROSTER = [
     spriteSize: 106,
     type: "adaptive",
     weakAgainst: ["bacteria"],
-    // Idle is used for both the cutscene and every battle moment except taking a hit.
-    // Hurt is battle-only, shown just when this fighter is on the receiving end of damage.
-    portrait: { idle: "assets/ctc/idle-portrait.png", hurt: "assets/ctc/hurt-portrait.png" },
+    // "idle" here is the battle-facing pose (forward, toward the enemy) — the true idle
+    // pose is cutscene-only now and lives in CUTSCENE_CHARACTERS.ctc.portrait instead.
+    portrait: { idle: "assets/ctc/battle-portrait.png", hurt: "assets/ctc/hurt-portrait.png" },
     // Unshaken: resistant to flinch/stun. No move in the game currently inflicts
     // either on the player, so this flag has no observable effect yet — it's here
     // so it's ready once a stunning enemy/boss move exists.
@@ -617,7 +620,7 @@ runBattleSteps([{ text: "A new battle begins!", mood: "idle", apply: () => {} }]
 // ---------- Cutscene ----------
 
 const CUTSCENE_CHARACTERS = {
-  neutrophil: { name: "Neutrophil", lines: ["[placeholder]"], lineIndex: 0, read: false },
+  neutrophil: { name: "Neutrophil", lines: ["[placeholder]"], lineIndex: 0, read: false, portrait: "assets/neutrophil/idle-portrait.png" },
   macrophage: { name: "Macrophage", lines: ["[placeholder]"], lineIndex: 0, read: false },
   ctc: { name: "Cytotoxic T Cell", lines: ["[placeholder]"], lineIndex: 0, read: false, portrait: "assets/ctc/idle-portrait.png" }
 };
