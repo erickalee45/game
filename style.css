@@ -598,6 +598,19 @@ body {
   cursor: default;
 }
 
+/* Invisible twin of #btn-switch, reserving the same space in the enemy panel
+   so both fighter panels are the same height and the sprites — not just the
+   panels' bottom edges — line up on the same ground line. */
+.switch-btn-spacer {
+  font-family: monospace;
+  border: 4px solid transparent;
+  border-radius: 10px;
+  padding: 6px 10px;
+  font-size: 12px;
+  width: 100%;
+  visibility: hidden;
+}
+
 #switch-panel {
   width: 100%;
   background: var(--gradient-panel);
