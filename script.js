@@ -584,6 +584,8 @@ function buildTurnSteps(fighter, move) {
     }
   }
 
+  steps.push({ text: `${fighter.name} is deciding...`, mood: "idle", apply: () => {} });
+
   return steps;
 }
 
