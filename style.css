@@ -469,6 +469,13 @@ body {
   cursor: pointer;
 }
 
+/* TB's big dialogue portrait (and its oversized battle sprite) reach further
+   right than the other fighters' art — narrow the box for the whole fight so
+   nothing overlaps, letting it grow taller instead. */
+#battle-dialogue-box.boss-active {
+  left: 48%;
+}
+
 #battle-dialogue-text {
   font-size: 14px;
 }

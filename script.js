@@ -206,15 +206,15 @@ const TB_PORTRAITS = {
   nogore: { idle: "assets/tb/idle-nogore-portrait.png", hurt: "assets/tb/hurt-nogore-portrait.png" }
 };
 
-// Placeholder stats — no real numbers given yet, so TB is stubbed in tougher
-// than the variant-3 resistant strain (1.2x base) with a generic attack.
 const TB_TEMPLATE = {
   name: "Tuberculosis",
   type: "bacteria",
-  attackName: "Necrotize",
-  maxHp: 260,
-  attackMin: 14,
-  attackMax: 26,
+  attackName: "Scratch",
+  maxHp: 175,
+  // Fallback stats (used only if the move-selection logic is ever bypassed) —
+  // match Scratch, TB's default regular attack.
+  attackMin: 8,
+  attackMax: 18,
   canStun: true,
   isBoss: true,
   sprite: {
@@ -222,8 +222,31 @@ const TB_TEMPLATE = {
     frames: ["assets/tb/frame-0.png", "assets/tb/frame-1.png", "assets/tb/frame-2.png", "assets/tb/frame-3.png"],
     frameDurationMs: 500
   },
-  spriteSize: 128
+  spriteSize: 128,
+  // Waxy Coating: any hit from a phagocyte-type fighter (Neutrophil, Macrophage)
+  // is reduced 15% — Cytotoxic T Cell (adaptive-type) is unaffected.
+  passive: { type: "waxyCoating", reduction: 0.15 }
 };
+
+// Scratch: TB's default regular attack, identical to the normal bacterium variant.
+const TB_SCRATCH_MIN = 8;
+const TB_SCRATCH_MAX = 18;
+
+// Twin Blade Strike: hits harder than Scratch, but goes on a 3-4 turn cooldown
+// after use so TB can't spam it. Placeholder numbers pending real values.
+const TB_TWIN_BLADE_MIN = 16;
+const TB_TWIN_BLADE_MAX = 28;
+const TB_TWIN_BLADE_CHANCE = 0.5;
+const TB_TWIN_BLADE_COOLDOWN_MIN = 3;
+const TB_TWIN_BLADE_COOLDOWN_MAX = 4;
+
+// Ambush: TB stands still for 2 turns (no attack), then unleashes a big hit on
+// whoever's equipped when it lands. Can only ever be used once against any
+// given fighter (tracked per-fighter-id on the enemy instance).
+const TB_AMBUSH_MIN = 25;
+const TB_AMBUSH_MAX = 35;
+const TB_AMBUSH_CHANCE = 0.25;
+const TB_AMBUSH_CHARGE_TURNS = 2;
 
 // Whoever's equipped when TB is revealed plays their own inner-thought
 // reaction line, keyed by fighter id.
@@ -270,12 +293,21 @@ function spawnEnemyFromTemplate(template) {
     spriteSize: template.spriteSize ?? 96,
     isBoss: template.isBoss ?? false,
     portrait: template.portrait ?? null,
+    passive: template.passive ?? null,
     bleeding: false,
-    immobilizedTurns: 0
+    immobilizedTurns: 0,
+    // TB-only move state — unused (and harmless) for regular enemies.
+    twinBladeCooldown: 0,
+    ambushChargeTurnsLeft: 0,
+    ambushUsedAgainst: new Set()
   };
   nameEnemy.textContent = enemy.name;
   renderEnemySprite(enemy);
   snapHpTrail(enemy, hpBarTrailEnemy);
+  // TB's big dialogue portrait (and its oversized battle sprite) need more
+  // vertical room than the box's default width leaves, so narrow it for the
+  // whole boss fight rather than just the instants TB's own art is showing.
+  battleDialogueBox.classList.toggle("boss-active", enemy.isBoss);
 }
 
 function spawnNextEncounter() {
@@ -625,6 +657,15 @@ function pushEnemyDefeatedSteps(steps, fighter) {
   return steps;
 }
 
+// Waxy Coating (TB): hits from phagocyte-type fighters (Neutrophil, Macrophage)
+// land 15% softer — Cytotoxic T Cell (adaptive-type) deals damage normally.
+function applyWaxyCoating(damage, fighter) {
+  if (enemy.passive?.type === "waxyCoating" && fighter.type === "phagocyte") {
+    return Math.max(1, Math.round(damage * (1 - enemy.passive.reduction)));
+  }
+  return damage;
+}
+
 function computePlayerDamage(fighter, move) {
   if (move.oneShotChance && Math.random() < move.oneShotChance) {
     return { damage: enemy.hp, isCrit: false, isOneShot: true, isNotVeryEffective: false };
@@ -634,7 +675,7 @@ function computePlayerDamage(fighter, move) {
   const weaknessMultiplier = isNotVeryEffective ? 0.5 : 1;
 
   if (move.isCrush) {
-    const damage = Math.max(1, Math.round(enemy.hp * 0.5 * weaknessMultiplier));
+    const damage = applyWaxyCoating(Math.max(1, Math.round(enemy.hp * 0.5 * weaknessMultiplier)), fighter);
     return { damage, isCrit: false, isOneShot: false, isNotVeryEffective };
   }
 
@@ -646,7 +687,8 @@ function computePlayerDamage(fighter, move) {
   }
   roll *= weaknessMultiplier;
 
-  return { damage: Math.max(1, Math.round(roll)), isCrit, isOneShot: false, isNotVeryEffective };
+  const damage = applyWaxyCoating(Math.max(1, Math.round(roll)), fighter);
+  return { damage, isCrit, isOneShot: false, isNotVeryEffective };
 }
 
 function buildTurnSteps(fighter, move) {
@@ -706,11 +748,73 @@ function buildStunnedTurnSteps(fighter) {
   return appendEnemyTurnSteps(steps, fighter, enemy.hp, enemy.bleeding, enemy.immobilizedTurns);
 }
 
+// Picks what the enemy does this turn. Regular enemies always just use their
+// one generic attack (identical to the previous behavior). TB instead rotates
+// between Scratch/Twin Blade Strike/Ambush — see decideTBMove().
+function decideEnemyMove(fighter) {
+  if (!enemy.isBoss) {
+    return { skip: false, attackName: enemy.attackName, min: enemy.attackMin, max: enemy.attackMax, onUsed: () => {} };
+  }
+  return decideTBMove(fighter);
+}
+
+function decideTBMove(fighter) {
+  if (enemy.twinBladeCooldown > 0) enemy.twinBladeCooldown--;
+
+  if (enemy.ambushChargeTurnsLeft > 0) {
+    enemy.ambushChargeTurnsLeft--;
+    if (enemy.ambushChargeTurnsLeft > 0) {
+      return { skip: true, text: `${enemy.name} is still standing still...` };
+    }
+    return {
+      skip: false,
+      attackName: "Ambush",
+      min: TB_AMBUSH_MIN,
+      max: TB_AMBUSH_MAX,
+      onUsed: () => { enemy.ambushUsedAgainst.add(fighter.id); }
+    };
+  }
+
+  const canAmbush = !enemy.ambushUsedAgainst.has(fighter.id);
+  if (canAmbush && Math.random() < TB_AMBUSH_CHANCE) {
+    enemy.ambushChargeTurnsLeft = TB_AMBUSH_CHARGE_TURNS;
+    return {
+      skip: true,
+      text: `${enemy.name} uses Ambush! They're standing still and will attack next turn...`
+    };
+  }
+
+  if (enemy.twinBladeCooldown <= 0 && Math.random() < TB_TWIN_BLADE_CHANCE) {
+    const cooldownSpan = TB_TWIN_BLADE_COOLDOWN_MAX - TB_TWIN_BLADE_COOLDOWN_MIN;
+    enemy.twinBladeCooldown = TB_TWIN_BLADE_COOLDOWN_MIN + Math.round(Math.random() * cooldownSpan);
+    return { skip: false, attackName: "Twin Blade Strike", min: TB_TWIN_BLADE_MIN, max: TB_TWIN_BLADE_MAX, onUsed: () => {} };
+  }
+
+  return { skip: false, attackName: "Scratch", min: TB_SCRATCH_MIN, max: TB_SCRATCH_MAX, onUsed: () => {} };
+}
+
 function appendEnemyTurnSteps(steps, fighter, enemyHpAfterMove, enemyBleedingAfterMove, enemyImmobilizedTurnsAfterMove) {
   // ---- Enemy's turn ----
-  steps.push({ text: `${enemy.name} is deciding...`, mood: "idle", apply: () => {} });
+  steps.push({
+    text: `${enemy.name} is deciding...`,
+    mood: "idle",
+    portraitSource: enemy.portrait ? enemy : undefined,
+    apply: () => {}
+  });
 
-  let enemyDamage = randomDamage(enemy);
+  const decision = decideEnemyMove(fighter);
+
+  if (decision.skip) {
+    steps.push({
+      text: decision.text,
+      mood: "idle",
+      portraitSource: enemy.portrait ? enemy : undefined,
+      apply: () => {}
+    });
+    return appendBleedTail(steps, fighter, enemyHpAfterMove, enemyBleedingAfterMove);
+  }
+
+  let enemyDamage = Math.floor(Math.random() * (decision.max - decision.min + 1)) + decision.min;
   let immobilizedTurnsAfterAttack = enemyImmobilizedTurnsAfterMove;
   if (enemyImmobilizedTurnsAfterMove > 0) {
     enemyDamage = Math.max(1, Math.round(enemyDamage * IMMOBILIZED_DAMAGE_MULTIPLIER));
@@ -734,9 +838,10 @@ function appendEnemyTurnSteps(steps, fighter, enemyHpAfterMove, enemyBleedingAft
   }
 
   steps.push({
-    text: `${enemy.name} uses ${enemy.attackName} on ${fighter.name} for ${enemyDamage} damage.`,
+    text: `${enemy.name} uses ${decision.attackName} on ${fighter.name} for ${enemyDamage} damage.`,
     mood: "hurt",
     apply: () => {
+      decision.onUsed();
       fighter.hp = fighterHpAfterAttack;
       enemy.immobilizedTurns = immobilizedTurnsAfterAttack;
       flashDamage(spritePlayer);
@@ -774,7 +879,7 @@ function appendEnemyTurnSteps(steps, fighter, enemyHpAfterMove, enemyBleedingAft
   let enemyHpAfterCorrosive = enemyHpAfterMove;
   if (fighter.passive?.type === "corrosiveBlood") {
     const reflectPercent = fighter.passive.minPercent + Math.random() * (fighter.passive.maxPercent - fighter.passive.minPercent);
-    const reflectDamage = Math.max(1, Math.round(enemy.maxHp * reflectPercent));
+    const reflectDamage = applyWaxyCoating(Math.max(1, Math.round(enemy.maxHp * reflectPercent)), fighter);
     enemyHpAfterCorrosive = enemyHpAfterMove - reflectDamage;
     steps.push({
       text: `${fighter.name}'s Corrosive Blood deals ${reflectDamage} damage to ${enemy.name}.`,
@@ -788,12 +893,17 @@ function appendEnemyTurnSteps(steps, fighter, enemyHpAfterMove, enemyBleedingAft
     }
   }
 
-  // ---- Bleed ----
+  return appendBleedTail(steps, fighter, enemyHpAfterCorrosive, enemyBleedingAfterMove);
+}
+
+// ---- Bleed ---- (shared tail: runs whether or not the enemy actually attacked
+// this turn, since bleed is an independent damage-over-time tick.)
+function appendBleedTail(steps, fighter, enemyHpBeforeBleed, enemyBleedingAfterMove) {
   if (enemyBleedingAfterMove) {
     steps.push({ text: `${enemy.name} is bleeding out...`, mood: "idle", apply: () => {} });
 
     const bleedDamage = Math.max(1, Math.round(enemy.maxHp * BLEED_PERCENT));
-    const enemyHpAfterBleed = enemyHpAfterCorrosive - bleedDamage;
+    const enemyHpAfterBleed = enemyHpBeforeBleed - bleedDamage;
     steps.push({
       text: `${enemy.name} takes ${bleedDamage} bleed damage.`,
       mood: enemy.portrait ? "hurt" : "idle",
