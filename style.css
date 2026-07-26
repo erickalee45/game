@@ -24,6 +24,7 @@ body {
 }
 
 #battle-screen[hidden],
+#battle2-screen[hidden],
 #cutscene-screen[hidden],
 #cutscene2-screen[hidden],
 #title-screen[hidden],
@@ -34,7 +35,8 @@ body {
 /* ---------- Title / Extras ---------- */
 
 #title-screen,
-#extras-screen {
+#extras-screen,
+#battle2-screen {
   position: fixed;
   inset: 0;
   background: var(--gradient-body);
@@ -44,8 +46,6 @@ body {
   z-index: 5;
   padding: 16px;
 }
-
-
 
 #title-menu {
   display: flex;
@@ -92,7 +92,8 @@ body {
   -webkit-text-fill-color: transparent;
 }
 
-#extras-content {
+#extras-content,
+#battle2-content {
   width: 100%;
   max-width: 480px;
   display: flex;
@@ -101,7 +102,8 @@ body {
   gap: 20px;
 }
 
-#extras-content p {
+#extras-content p,
+#battle2-content p {
   width: 100%;
   margin: 0;
   background: var(--gradient-panel);
@@ -287,7 +289,8 @@ body {
   text-align: right;
 }
 
-#btn-continue-fighting {
+#btn-continue-fighting,
+#btn-continue-battle2 {
   position: absolute;
   right: 20px;
   bottom: 20px;
@@ -302,18 +305,23 @@ body {
   transition: background 0.1s, color 0.1s;
 }
 
-#btn-continue-fighting[hidden] {
+#btn-continue-fighting[hidden],
+#btn-continue-battle2[hidden] {
   display: none;
 }
 
 #btn-continue-fighting:hover,
-#btn-continue-fighting:focus-visible {
+#btn-continue-fighting:focus-visible,
+#btn-continue-battle2:hover,
+#btn-continue-battle2:focus-visible {
   background: #fff;
   outline: none;
 }
 
 #btn-continue-fighting:hover span,
-#btn-continue-fighting:focus-visible span {
+#btn-continue-fighting:focus-visible span,
+#btn-continue-battle2:hover span,
+#btn-continue-battle2:focus-visible span {
   background-image: var(--gradient-panel);
   background-clip: text;
   -webkit-background-clip: text;

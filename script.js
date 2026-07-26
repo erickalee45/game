@@ -771,7 +771,17 @@ const CUTSCENE_CHARACTERS = {
   },
   ctc: {
     name: "Cytotoxic T Cell",
-    portraits: { idle: "assets/ctc/idle-portrait.png", shocked: "assets/ctc/shocked-portrait.png" }
+    portraits: {
+      idle: "assets/ctc/idle-portrait.png",
+      shocked: "assets/ctc/shocked-portrait.png",
+      blush: "assets/ctc/blush-portrait.png"
+    }
+  },
+  // Arden only ever appears via text, never in person — no portraits, so
+  // the dialogue box's portrait always stays hidden for his lines.
+  arden: {
+    name: "Arden",
+    portraits: {}
   }
 };
 
@@ -813,11 +823,31 @@ const SHOCK_EVENT_DELAY_MS = 500;
 // cutscene 1 (Neutrophil and Macrophage share a conversation since they're
 // still sitting together, CTC gets his own lines), real dialogue TBD.
 const NM_CONVERSATION_2 = [
-  { speaker: "neutrophil", mood: "idle", text: "[placeholder]" }
+  { speaker: "macrophage", mood: "idle", text: "How's your injuries?" },
+  { speaker: "neutrophil", mood: "idle", text: "Not too bad. I can barely feel them now. How's yours?" },
+  { speaker: "macrophage", mood: "idle", text: "They're okay." },
+  { speaker: "neutrophil", mood: "idle", text: "..infections don't normally take this long to clear, do they? Usually for scrapes like these, they're handled pretty well." },
+  { speaker: "macrophage", mood: "idle", text: "You're right, but infections can vary. The invaders could just be a mutated strain, who knows." },
+  { speaker: "neutrophil", mood: "idle", text: "I just hope nothing too bad found its way in here." },
+  { speaker: "macrophage", mood: "idle", text: "..." },
+  { speaker: "macrophage", mood: "idle", text: "Me too." }
 ];
 
+// CTC's half is a text conversation with Arden rather than spoken dialogue —
+// quoted + italic/grey (.inner-thought) marks it as text-on-a-screen, same
+// visual treatment as his inner monologue in cutscene 1.
 const CTC_MONOLOGUE_2 = [
-  { speaker: "ctc", mood: "idle", text: "[placeholder]", thought: true }
+  { speaker: "ctc", mood: "idle", text: "\"I'm on break again.\"", thought: true },
+  { speaker: "ctc", mood: "idle", text: "\"...\"", thought: true },
+  { speaker: "ctc", mood: "idle", text: "\"How are you doing?\"", thought: true },
+  { speaker: "arden", text: "\"fine\"", thought: true },
+  { speaker: "arden", text: "\"how's the battle going?\"", thought: true },
+  { speaker: "ctc", mood: "idle", text: "\"It's going optimally.\"", thought: true },
+  { speaker: "arden", text: "\"good 2 hear\"", thought: true },
+  { speaker: "arden", text: "\"see u back home soon?\"", thought: true },
+  { speaker: "arden", text: "\"ily\"", thought: true },
+  { speaker: "ctc", mood: "blush", text: "\"...\"", thought: true },
+  { speaker: "ctc", mood: "idle", text: "\"Yes.\"", thought: true }
 ];
 
 const cutsceneScreen = document.getElementById("cutscene-screen");
@@ -829,6 +859,8 @@ const dialogueBox = document.getElementById("dialogue-box");
 const dialogueSpeaker = document.getElementById("dialogue-speaker");
 const dialogueText = document.getElementById("dialogue-text");
 const btnContinueFighting = document.getElementById("btn-continue-fighting");
+const btnContinueBattle2 = document.getElementById("btn-continue-battle2");
+const battle2Screen = document.getElementById("battle2-screen");
 
 const dialogue2Portrait = document.getElementById("dialogue2-portrait");
 const dialogue2Box = document.getElementById("dialogue2-box");
@@ -975,14 +1007,37 @@ function handleHotspotClick(charId) {
   }
 }
 
+let nmDialogue2Read = false;
+let ctcDialogue2Read = false;
+
 function handleHotspot2Click(charId) {
-  const lines = charId === "ctc" ? CTC_MONOLOGUE_2 : NM_CONVERSATION_2;
-  cutscene2Dialogue.open(lines);
+  if (charId === "ctc") {
+    cutscene2Dialogue.open(CTC_MONOLOGUE_2, () => {
+      ctcDialogue2Read = true;
+      checkCutscene2Progress();
+    });
+  } else {
+    cutscene2Dialogue.open(NM_CONVERSATION_2, () => {
+      nmDialogue2Read = true;
+      checkCutscene2Progress();
+    });
+  }
+}
+
+function checkCutscene2Progress() {
+  if (nmDialogue2Read && ctcDialogue2Read) {
+    btnContinueBattle2.hidden = false;
+  }
 }
 
 function goToBattle() {
   cutsceneScreen.hidden = true;
   battleScreenEl.hidden = false;
+}
+
+function goToBattle2() {
+  cutscene2Screen.hidden = true;
+  battle2Screen.hidden = false;
 }
 
 function wireHotspots(hotspots, bubbles, onClick) {
@@ -1008,6 +1063,7 @@ wireHotspots(cutsceneHotspots, cutsceneBubbles, handleHotspotClick);
 wireHotspots(cutscene2Hotspots, cutscene2Bubbles, handleHotspot2Click);
 
 btnContinueFighting.addEventListener("click", goToBattle);
+btnContinueBattle2.addEventListener("click", goToBattle2);
 
 // ---------- Title / Extras ----------
 
