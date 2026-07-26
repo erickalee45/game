@@ -24,7 +24,7 @@ body {
 }
 
 #battle-screen[hidden],
-#battle2-screen[hidden],
+#post-battle2-screen[hidden],
 #cutscene-screen[hidden],
 #cutscene2-screen[hidden],
 #title-screen[hidden],
@@ -36,7 +36,7 @@ body {
 
 #title-screen,
 #extras-screen,
-#battle2-screen {
+#post-battle2-screen {
   position: fixed;
   inset: 0;
   background: var(--gradient-body);
@@ -93,7 +93,7 @@ body {
 }
 
 #extras-content,
-#battle2-content {
+#post-battle2-content {
   width: 100%;
   max-width: 480px;
   display: flex;
@@ -103,7 +103,7 @@ body {
 }
 
 #extras-content p,
-#battle2-content p {
+#post-battle2-content p {
   width: 100%;
   margin: 0;
   background: var(--gradient-panel);
@@ -384,7 +384,8 @@ body {
 }
 
 /* Takes the dialogue box's place once every encounter in the queue is defeated. */
-#btn-continue-cutscene2 {
+#btn-continue-cutscene2,
+#btn-continue-post-battle2 {
   position: absolute;
   left: 50%;
   bottom: 5%;
@@ -400,18 +401,23 @@ body {
   transition: background 0.1s, color 0.1s;
 }
 
-#btn-continue-cutscene2[hidden] {
+#btn-continue-cutscene2[hidden],
+#btn-continue-post-battle2[hidden] {
   display: none;
 }
 
 #btn-continue-cutscene2:hover,
-#btn-continue-cutscene2:focus-visible {
+#btn-continue-cutscene2:focus-visible,
+#btn-continue-post-battle2:hover,
+#btn-continue-post-battle2:focus-visible {
   background: #fff;
   outline: none;
 }
 
 #btn-continue-cutscene2:hover span,
-#btn-continue-cutscene2:focus-visible span {
+#btn-continue-cutscene2:focus-visible span,
+#btn-continue-post-battle2:hover span,
+#btn-continue-post-battle2:focus-visible span {
   background-image: var(--gradient-panel);
   background-clip: text;
   -webkit-background-clip: text;

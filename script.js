@@ -149,43 +149,74 @@ const ROSTER = [
 
 const DEFAULT_FIGHTER_ID = "neutrophil";
 
-const ENEMY_TEMPLATES = {
-  bacteriaVariant1: {
-    name: "Opportunistic Bacterium",
-    type: "bacteria",
-    attackName: "Scratch",
-    maxHp: 100,
-    attackMin: 8,
-    attackMax: 18,
-    // Bacteria can stun on hit, skipping the player's next turn entirely.
-    canStun: true,
-    sprite: {
-      type: "animated",
-      frames: ["assets/bacteria/variant1-frame-0.png", "assets/bacteria/variant1-frame-1.png"],
-      frameDurationMs: 500
-    },
-    spriteSize: 96
-  },
-  virusVariant1: {
-    name: "Opportunistic Virus",
-    type: "virus",
-    attackName: "Infect",
-    maxHp: 100,
-    attackMin: 8,
-    attackMax: 18,
-    sprite: {
-      type: "animated",
-      frames: ["assets/virus/variant1-frame-0.png", "assets/virus/variant1-frame-1.png"],
-      frameDurationMs: 500
-    },
-    spriteSize: 96
-  }
+// Variant 2 ("weakened strain") and 3 ("resistant strain") scale the base
+// variant 1 stats by 0.8x / 1.2x for both HP and damage.
+function scaleTemplate(base, multiplier, sprite) {
+  return {
+    ...base,
+    maxHp: Math.round(base.maxHp * multiplier),
+    attackMin: Math.round(base.attackMin * multiplier),
+    attackMax: Math.round(base.attackMax * multiplier),
+    sprite
+  };
+}
+
+const BACTERIA_VARIANT_1_BASE = {
+  name: "Opportunistic Bacterium",
+  type: "bacteria",
+  attackName: "Scratch",
+  maxHp: 100,
+  attackMin: 8,
+  attackMax: 18,
+  // Bacteria can stun on hit, skipping the player's next turn entirely.
+  canStun: true
 };
 
-// Regular Fight 1: guaranteed one bacterium then one virus (both variant 1, the
-// "normal" strain) so the player meets both enemy types and the weakness chart
-// risk-free before RNG variants (2 = weakened, 3 = resistant) start showing up.
-const ENCOUNTER_QUEUE = [ENEMY_TEMPLATES.bacteriaVariant1, ENEMY_TEMPLATES.virusVariant1];
+const VIRUS_VARIANT_1_BASE = {
+  name: "Opportunistic Virus",
+  type: "virus",
+  attackName: "Infect",
+  maxHp: 100,
+  attackMin: 8,
+  attackMax: 18
+};
+
+function variantSprite(kind, variant) {
+  return {
+    type: "animated",
+    frames: [`assets/${kind}/variant${variant}-frame-0.png`, `assets/${kind}/variant${variant}-frame-1.png`],
+    frameDurationMs: 500
+  };
+}
+
+const ENEMY_TEMPLATES = {
+  bacteriaVariant1: { ...BACTERIA_VARIANT_1_BASE, sprite: variantSprite("bacteria", 1), spriteSize: 96 },
+  bacteriaVariant2: { ...scaleTemplate(BACTERIA_VARIANT_1_BASE, 0.8, variantSprite("bacteria", 2)), spriteSize: 96 },
+  bacteriaVariant3: { ...scaleTemplate(BACTERIA_VARIANT_1_BASE, 1.2, variantSprite("bacteria", 3)), spriteSize: 96 },
+  virusVariant1: { ...VIRUS_VARIANT_1_BASE, sprite: variantSprite("virus", 1), spriteSize: 96 },
+  virusVariant2: { ...scaleTemplate(VIRUS_VARIANT_1_BASE, 0.8, variantSprite("virus", 2)), spriteSize: 96 },
+  virusVariant3: { ...scaleTemplate(VIRUS_VARIANT_1_BASE, 1.2, variantSprite("virus", 3)), spriteSize: 96 }
+};
+
+// Regular Fight 1: guaranteed one bacterium then one virus, both the "normal"
+// variant 1 strain, so the player meets both enemy types and the weakness
+// chart risk-free before variant RNG starts.
+function buildBattle1Queue() {
+  return [ENEMY_TEMPLATES.bacteriaVariant1, ENEMY_TEMPLATES.virusVariant1];
+}
+
+function pickRandomVariant(kind) {
+  const variant = Math.random() < 0.5 ? 2 : 3;
+  return ENEMY_TEMPLATES[`${kind}Variant${variant}`];
+}
+
+// Regular Fight 2: still guaranteed one bacterium then one virus, but now only
+// the weakened (2) or resistant (3) strain — never the variant 1 "normal" one.
+function buildBattle2Queue() {
+  return [pickRandomVariant("bacteria"), pickRandomVariant("virus")];
+}
+
+let ENCOUNTER_QUEUE = [];
 let encounterIndex = 0;
 
 let enemy;
@@ -216,7 +247,8 @@ function spawnNextEncounter() {
   spawnEnemyFromTemplate(template);
 }
 
-function startEncounterQueue() {
+function startEncounterQueue(queue) {
+  ENCOUNTER_QUEUE = queue;
   encounterIndex = 0;
   spawnNextEncounter();
 }
@@ -241,6 +273,7 @@ const moveDescription = document.getElementById("move-description");
 const moveButtonsEl = document.getElementById("move-buttons");
 const btnRestart = document.getElementById("btn-restart");
 const btnContinueCutscene2 = document.getElementById("btn-continue-cutscene2");
+const btnContinuePostBattle2 = document.getElementById("btn-continue-post-battle2");
 const btnSwitch = document.getElementById("btn-switch");
 const switchPanel = document.getElementById("switch-panel");
 const spritePlayer = document.getElementById("sprite-player");
@@ -254,6 +287,9 @@ let ctcAnimationTimer = null;
 let enemyAnimationTimer = null;
 let awaitingForcedSwitch = false;
 let awaitingCutsceneTransition = false;
+// Which "continue" button to reveal once awaitingCutsceneTransition resolves —
+// set by beginBattle() so battle 1 and battle 2 hand off to different screens.
+let currentVictoryButton = btnContinueCutscene2;
 const moveButtons = [];
 
 function getActiveFighter() {
@@ -296,7 +332,7 @@ function advanceBattleDialogue() {
   if (awaitingCutsceneTransition) {
     battleDialogueBox.hidden = true;
     battleDialoguePortrait.hidden = true;
-    btnContinueCutscene2.hidden = false;
+    currentVictoryButton.hidden = false;
     return;
   }
 
@@ -725,20 +761,36 @@ function useMove(fighter, move) {
   runBattleSteps(buildTurnSteps(fighter, move));
 }
 
-function restartBattle() {
+// Tracks which battle is currently active so Restart (after a loss) can redo the
+// same one — re-rolling battle 2's variants fresh rather than pinning them.
+let currentQueueBuilder = buildBattle1Queue;
+
+function beginBattle(queueBuilder, victoryButton) {
+  currentQueueBuilder = queueBuilder;
+  currentVictoryButton = victoryButton;
   ROSTER.forEach((fighter) => {
     fighter.hp = fighter.maxHp;
     fighter.stunned = false;
   });
-  startEncounterQueue();
   battleOver = false;
   activeFighterId = DEFAULT_FIGHTER_ID;
   awaitingForcedSwitch = false;
+  awaitingCutsceneTransition = false;
   btnSwitch.hidden = false;
   btnRestart.style.display = "none";
+  btnContinueCutscene2.hidden = true;
+  btnContinuePostBattle2.hidden = true;
+  // A prior battle's victory hides these to make room for its continue button.
+  battleDialogueBox.hidden = false;
+  battleDialoguePortrait.hidden = true;
+  startEncounterQueue(queueBuilder());
   renderActiveFighter();
   setMovesLocked(true);
   runBattleSteps([{ text: "A new battle begins!", mood: "idle", apply: () => {} }]);
+}
+
+function restartBattle() {
+  beginBattle(currentQueueBuilder, currentVictoryButton);
 }
 
 btnRestart.addEventListener("click", restartBattle);
@@ -748,11 +800,12 @@ btnContinueCutscene2.addEventListener("click", () => {
   battleScreenEl.hidden = true;
   cutscene2Screen.hidden = false;
 });
+btnContinuePostBattle2.addEventListener("click", () => {
+  battleScreenEl.hidden = true;
+  postBattle2Screen.hidden = false;
+});
 
-startEncounterQueue();
-renderActiveFighter();
-setMovesLocked(true);
-runBattleSteps([{ text: "A new battle begins!", mood: "idle", apply: () => {} }]);
+beginBattle(buildBattle1Queue, btnContinueCutscene2);
 
 // ---------- Cutscene ----------
 
@@ -859,8 +912,8 @@ const dialogueBox = document.getElementById("dialogue-box");
 const dialogueSpeaker = document.getElementById("dialogue-speaker");
 const dialogueText = document.getElementById("dialogue-text");
 const btnContinueFighting = document.getElementById("btn-continue-fighting");
-const btnContinueBattle2 = document.getElementById("btn-continue-battle2");
-const battle2Screen = document.getElementById("battle2-screen");
+const btnGoToBattle2 = document.getElementById("btn-continue-battle2");
+const postBattle2Screen = document.getElementById("post-battle2-screen");
 
 const dialogue2Portrait = document.getElementById("dialogue2-portrait");
 const dialogue2Box = document.getElementById("dialogue2-box");
@@ -1026,7 +1079,7 @@ function handleHotspot2Click(charId) {
 
 function checkCutscene2Progress() {
   if (nmDialogue2Read && ctcDialogue2Read) {
-    btnContinueBattle2.hidden = false;
+    btnGoToBattle2.hidden = false;
   }
 }
 
@@ -1037,7 +1090,8 @@ function goToBattle() {
 
 function goToBattle2() {
   cutscene2Screen.hidden = true;
-  battle2Screen.hidden = false;
+  battleScreenEl.hidden = false;
+  beginBattle(buildBattle2Queue, btnContinuePostBattle2);
 }
 
 function wireHotspots(hotspots, bubbles, onClick) {
@@ -1063,7 +1117,7 @@ wireHotspots(cutsceneHotspots, cutsceneBubbles, handleHotspotClick);
 wireHotspots(cutscene2Hotspots, cutscene2Bubbles, handleHotspot2Click);
 
 btnContinueFighting.addEventListener("click", goToBattle);
-btnContinueBattle2.addEventListener("click", goToBattle2);
+btnGoToBattle2.addEventListener("click", goToBattle2);
 
 // ---------- Title / Extras ----------
 
