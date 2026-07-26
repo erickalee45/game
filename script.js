@@ -18,7 +18,7 @@ const ROSTER = [
     weakAgainst: ["virus"],
     // "idle" here is the battle-facing pose (forward, toward the enemy) — the true idle
     // pose is cutscene-only now and lives in CUTSCENE_CHARACTERS.neutrophil.portrait instead.
-    portrait: { idle: "assets/neutrophil/battle-portrait.png", hurt: "assets/neutrophil/hurt-portrait.png" },
+    portrait: { idle: "assets/neutrophil/battle-portrait.png", hurt: "assets/neutrophil/hurt-portrait.png", shocked: "assets/neutrophil/shocked-portrait.png" },
     // Corrosive Blood: after an enemy attacks him, reflect ~3-5% of the enemy's max HP back.
     passive: { type: "corrosiveBlood", minPercent: 0.03, maxPercent: 0.05 },
     moves: [
@@ -69,7 +69,7 @@ const ROSTER = [
     // Exception to the idle/battle split: his design covers his eyes, so there's
     // no separate forward-facing pose — idle doubles as both the cutscene and
     // battle "idle" mood art.
-    portrait: { idle: "assets/macrophage/idle-portrait.png", hurt: "assets/macrophage/hurt-portrait.png" },
+    portrait: { idle: "assets/macrophage/idle-portrait.png", hurt: "assets/macrophage/hurt-portrait.png", shocked: "assets/macrophage/shocked-portrait.png" },
     // Tank: small chance to significantly reduce an incoming hit.
     passive: { type: "tank", chance: 0.25, reduction: 0.5 },
     moves: [
@@ -116,7 +116,7 @@ const ROSTER = [
     weakAgainst: ["bacteria"],
     // "idle" here is the battle-facing pose (forward, toward the enemy) — the true idle
     // pose is cutscene-only now and lives in CUTSCENE_CHARACTERS.ctc.portrait instead.
-    portrait: { idle: "assets/ctc/battle-portrait.png", hurt: "assets/ctc/hurt-portrait.png" },
+    portrait: { idle: "assets/ctc/battle-portrait.png", hurt: "assets/ctc/hurt-portrait.png", shocked: "assets/ctc/shocked-portrait.png" },
     // Unshaken: fully immune to stun (bacteria's chance to skip the player's turn).
     passive: { type: "unshaken" },
     moves: [
@@ -198,6 +198,41 @@ const ENEMY_TEMPLATES = {
   virusVariant3: { ...scaleTemplate(VIRUS_VARIANT_1_BASE, 1.2, variantSprite("virus", 3)), spriteSize: 96 }
 };
 
+// TB's idle/hurt art comes in two versions (gore/no-gore) — which one gets
+// used is decided at reveal time via the gore-warning modal, not baked into
+// the template.
+const TB_PORTRAITS = {
+  gore: { idle: "assets/tb/idle-gore-portrait.png", hurt: "assets/tb/hurt-gore-portrait.png" },
+  nogore: { idle: "assets/tb/idle-nogore-portrait.png", hurt: "assets/tb/hurt-nogore-portrait.png" }
+};
+
+// Placeholder stats — no real numbers given yet, so TB is stubbed in tougher
+// than the variant-3 resistant strain (1.2x base) with a generic attack.
+const TB_TEMPLATE = {
+  name: "Tuberculosis",
+  type: "bacteria",
+  attackName: "Necrotize",
+  maxHp: 260,
+  attackMin: 14,
+  attackMax: 26,
+  canStun: true,
+  isBoss: true,
+  sprite: {
+    type: "animated",
+    frames: ["assets/tb/frame-0.png", "assets/tb/frame-1.png", "assets/tb/frame-2.png", "assets/tb/frame-3.png"],
+    frameDurationMs: 500
+  },
+  spriteSize: 128
+};
+
+// Whoever's equipped when TB is revealed plays their own inner-thought
+// reaction line, keyed by fighter id.
+const TB_REACTION_LINES = {
+  neutrophil: "(...that's not supposed to be here.)",
+  macrophage: "(That's not possible.)",
+  ctc: "(I thought this species entered through the lungs. Not here.)"
+};
+
 // Regular Fight 1: guaranteed one bacterium then one virus, both the "normal"
 // variant 1 strain, so the player meets both enemy types and the weakness
 // chart risk-free before variant RNG starts.
@@ -233,6 +268,8 @@ function spawnEnemyFromTemplate(template) {
     canStun: template.canStun ?? false,
     sprite: template.sprite ?? null,
     spriteSize: template.spriteSize ?? 96,
+    isBoss: template.isBoss ?? false,
+    portrait: template.portrait ?? null,
     bleeding: false,
     immobilizedTurns: 0
   };
@@ -274,6 +311,9 @@ const moveButtonsEl = document.getElementById("move-buttons");
 const btnRestart = document.getElementById("btn-restart");
 const btnContinueCutscene2 = document.getElementById("btn-continue-cutscene2");
 const btnContinuePostBattle2 = document.getElementById("btn-continue-post-battle2");
+const goreWarningModal = document.getElementById("gore-warning-modal");
+const btnGoreYes = document.getElementById("btn-gore-yes");
+const btnGoreNo = document.getElementById("btn-gore-no");
 const btnSwitch = document.getElementById("btn-switch");
 const switchPanel = document.getElementById("switch-panel");
 const spritePlayer = document.getElementById("sprite-player");
@@ -287,6 +327,10 @@ let ctcAnimationTimer = null;
 let enemyAnimationTimer = null;
 let awaitingForcedSwitch = false;
 let awaitingCutsceneTransition = false;
+// Set while the gore-warning modal / TB reveal sequence is playing out, so the
+// "steps exhausted" branch in advanceBattleDialogue doesn't prematurely unlock
+// moves before TB has actually appeared.
+let awaitingBossEncounter = false;
 // Which "continue" button to reveal once awaitingCutsceneTransition resolves —
 // set by beginBattle() so battle 1 and battle 2 hand off to different screens.
 let currentVictoryButton = btnContinueCutscene2;
@@ -303,8 +347,9 @@ function randomDamage(fighter) {
 let currentBattleSteps = [];
 let currentBattleStepIndex = 0;
 
-function renderBattleDialoguePortrait(mood) {
-  const src = getActiveFighter().portrait?.[mood || "idle"];
+function renderBattleDialoguePortrait(mood, portraitSource) {
+  const source = portraitSource || getActiveFighter();
+  const src = source.portrait?.[mood || "idle"];
   if (src) {
     battleDialoguePortrait.src = src;
     battleDialoguePortrait.hidden = false;
@@ -325,7 +370,8 @@ function advanceBattleDialogue() {
   currentBattleStepIndex++;
   step.apply();
   battleDialogueText.textContent = step.text;
-  renderBattleDialoguePortrait(step.mood);
+  battleDialogueText.classList.toggle("inner-thought", !!step.thought);
+  renderBattleDialoguePortrait(step.mood, step.portraitSource);
 
   if (currentBattleStepIndex < currentBattleSteps.length) return;
 
@@ -335,6 +381,8 @@ function advanceBattleDialogue() {
     currentVictoryButton.hidden = false;
     return;
   }
+
+  if (awaitingBossEncounter) return;
 
   if (!battleOver && !awaitingForcedSwitch) {
     const fighter = getActiveFighter();
@@ -552,11 +600,16 @@ function endBattleWithVictory() {
 
 function pushEnemyDefeatedSteps(steps, fighter) {
   const hasNextEncounter = encounterIndex < ENCOUNTER_QUEUE.length;
+  const defeatedBoss = enemy.isBoss;
 
   steps.push({
     text: `${enemy.name} is defeated. ${fighter.name} wins!`,
     mood: "idle",
-    apply: hasNextEncounter ? () => {} : () => { endBattleWithVictory(); }
+    apply: hasNextEncounter
+      ? () => {}
+      : defeatedBoss
+        ? () => { endBattleWithVictory(); }
+        : () => { currentOnQueueComplete(); }
   });
 
   if (hasNextEncounter) {
@@ -605,7 +658,8 @@ function buildTurnSteps(fighter, move) {
   const hitSuffix = isOneShot ? " — finishing them off" : isCrit ? " (critical hit!)" : "";
   steps.push({
     text: `${fighter.name} uses ${move.name} on ${enemy.name} for ${playerDamage} damage${hitSuffix}.`,
-    mood: "idle",
+    mood: enemy.portrait ? "hurt" : "idle",
+    portraitSource: enemy.portrait ? enemy : undefined,
     apply: () => { enemy.hp = enemyHpAfterMove; flashDamage(spriteEnemy); refreshDisplay(); }
   });
 
@@ -724,7 +778,8 @@ function appendEnemyTurnSteps(steps, fighter, enemyHpAfterMove, enemyBleedingAft
     enemyHpAfterCorrosive = enemyHpAfterMove - reflectDamage;
     steps.push({
       text: `${fighter.name}'s Corrosive Blood deals ${reflectDamage} damage to ${enemy.name}.`,
-      mood: "idle",
+      mood: enemy.portrait ? "hurt" : "idle",
+      portraitSource: enemy.portrait ? enemy : undefined,
       apply: () => { enemy.hp = enemyHpAfterCorrosive; flashDamage(spriteEnemy); refreshDisplay(); }
     });
 
@@ -741,7 +796,8 @@ function appendEnemyTurnSteps(steps, fighter, enemyHpAfterMove, enemyBleedingAft
     const enemyHpAfterBleed = enemyHpAfterCorrosive - bleedDamage;
     steps.push({
       text: `${enemy.name} takes ${bleedDamage} bleed damage.`,
-      mood: "idle",
+      mood: enemy.portrait ? "hurt" : "idle",
+      portraitSource: enemy.portrait ? enemy : undefined,
       apply: () => { enemy.hp = enemyHpAfterBleed; enemy.bleeding = false; flashDamage(spriteEnemy); refreshDisplay(); }
     });
 
@@ -764,10 +820,14 @@ function useMove(fighter, move) {
 // Tracks which battle is currently active so Restart (after a loss) can redo the
 // same one — re-rolling battle 2's variants fresh rather than pinning them.
 let currentQueueBuilder = buildBattle1Queue;
+// Called when the regular encounter queue empties — defaults to an immediate
+// victory (battle 1), but battle 2 overrides this to trigger TB's reveal instead.
+let currentOnQueueComplete = endBattleWithVictory;
 
-function beginBattle(queueBuilder, victoryButton) {
+function beginBattle(queueBuilder, victoryButton, onQueueComplete = endBattleWithVictory) {
   currentQueueBuilder = queueBuilder;
   currentVictoryButton = victoryButton;
+  currentOnQueueComplete = onQueueComplete;
   ROSTER.forEach((fighter) => {
     fighter.hp = fighter.maxHp;
     fighter.stunned = false;
@@ -776,6 +836,8 @@ function beginBattle(queueBuilder, victoryButton) {
   activeFighterId = DEFAULT_FIGHTER_ID;
   awaitingForcedSwitch = false;
   awaitingCutsceneTransition = false;
+  awaitingBossEncounter = false;
+  goreWarningModal.hidden = true;
   btnSwitch.hidden = false;
   btnRestart.style.display = "none";
   btnContinueCutscene2.hidden = true;
@@ -790,7 +852,49 @@ function beginBattle(queueBuilder, victoryButton) {
 }
 
 function restartBattle() {
-  beginBattle(currentQueueBuilder, currentVictoryButton);
+  beginBattle(currentQueueBuilder, currentVictoryButton, currentOnQueueComplete);
+}
+
+// Spawns TB directly (not via the encounter queue) with whichever gore/no-gore
+// portrait set the player agreed to see.
+function spawnBoss(useGore) {
+  spawnEnemyFromTemplate(TB_TEMPLATE);
+  enemy.portrait = useGore ? TB_PORTRAITS.gore : TB_PORTRAITS.nogore;
+}
+
+function showGoreWarning(callback) {
+  goreWarningModal.hidden = false;
+  function onYes() {
+    cleanup();
+    callback(true);
+  }
+  function onNo() {
+    cleanup();
+    callback(false);
+  }
+  function cleanup() {
+    goreWarningModal.hidden = true;
+    btnGoreYes.removeEventListener("click", onYes);
+    btnGoreNo.removeEventListener("click", onNo);
+  }
+  btnGoreYes.addEventListener("click", onYes);
+  btnGoreNo.addEventListener("click", onNo);
+}
+
+// Triggered once battle 2's regular encounters are cleared — warns about gore,
+// spawns TB with the chosen portrait set, then plays the active fighter's
+// reaction line before unlocking moves for the boss fight.
+function beginTBEncounter() {
+  awaitingBossEncounter = true;
+  showGoreWarning((useGore) => {
+    spawnBoss(useGore);
+    refreshDisplay();
+    const reactionText = TB_REACTION_LINES[activeFighterId];
+    runBattleSteps([
+      { text: `${enemy.name} appears!`, mood: "idle", apply: () => {} },
+      { text: reactionText, mood: "shocked", thought: true, apply: () => { awaitingBossEncounter = false; } }
+    ]);
+  });
 }
 
 btnRestart.addEventListener("click", restartBattle);
@@ -1091,7 +1195,7 @@ function goToBattle() {
 function goToBattle2() {
   cutscene2Screen.hidden = true;
   battleScreenEl.hidden = false;
-  beginBattle(buildBattle2Queue, btnContinuePostBattle2);
+  beginBattle(buildBattle2Queue, btnContinuePostBattle2, beginTBEncounter);
 }
 
 function wireHotspots(hotspots, bubbles, onClick) {

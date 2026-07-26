@@ -28,7 +28,8 @@ body {
 #cutscene-screen[hidden],
 #cutscene2-screen[hidden],
 #title-screen[hidden],
-#extras-screen[hidden] {
+#extras-screen[hidden],
+#gore-warning-modal[hidden] {
   display: none;
 }
 
@@ -152,6 +153,63 @@ body {
   padding: 24px 20px;
   text-align: center;
   font-size: 15px;
+}
+
+/* ---------- Gore Warning Modal ---------- */
+
+#gore-warning-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  padding: 16px;
+}
+
+#gore-warning-box {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  background: var(--gradient-panel);
+  color: #fff;
+  border: 4px solid var(--border-white);
+  border-radius: 14px;
+  padding: 24px 20px;
+}
+
+#gore-warning-box p {
+  margin: 0;
+  text-align: center;
+  font-size: 15px;
+}
+
+#gore-warning-actions {
+  display: flex;
+  gap: 16px;
+}
+
+#gore-warning-actions button {
+  font-family: monospace;
+  background: #fff;
+  color: var(--text-dark);
+  border: 4px solid var(--border-white);
+  border-radius: 10px;
+  padding: 12px 28px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+
+#gore-warning-actions button:hover,
+#gore-warning-actions button:focus-visible {
+  background: var(--gradient-panel);
+  color: #fff;
+  outline: none;
 }
 
 /* ---------- Cutscene ---------- */
