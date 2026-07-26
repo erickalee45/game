@@ -32,9 +32,66 @@ body {
   display: none;
 }
 
-/* ---------- Title / Extras ---------- */
+/* ---------- Title ---------- */
 
-#title-screen,
+#title-screen {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  z-index: 5;
+}
+
+/* Same cover-the-whole-screen trick as the letterboxed cutscene stage, just
+   flipped (max() instead of min()) so it crops to fill instead of fitting —
+   this keeps the button percentages accurate against the true 1920x1080 art
+   no matter the window's aspect ratio, same as background-size: cover would,
+   but without losing the coordinate space the buttons are positioned in. */
+#title-stage {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: max(100vw, calc(100vh * 1920 / 1080));
+  height: max(100vh, calc(100vw * 1080 / 1920));
+}
+
+#title-bg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+#btn-new-game,
+#btn-extras {
+  position: absolute;
+  background-color: transparent;
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: center;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+#btn-new-game {
+  background-image: url("assets/btn-new-game.png");
+}
+
+#btn-extras {
+  background-image: url("assets/btn-extras.png");
+}
+
+#btn-new-game:hover,
+#btn-new-game:focus-visible,
+#btn-extras:hover,
+#btn-extras:focus-visible {
+  transform: scale(0.95);
+  outline: none;
+}
+
+/* ---------- Extras ---------- */
+
 #extras-screen,
 #post-battle2-screen {
   position: fixed;
@@ -47,16 +104,6 @@ body {
   padding: 16px;
 }
 
-#title-menu {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  width: 100%;
-  max-width: 280px;
-}
-
-#btn-new-game,
-#btn-extras,
 #btn-extras-back {
   font-family: monospace;
   background: var(--gradient-panel);
@@ -69,20 +116,12 @@ body {
   transition: background 0.1s, color 0.1s;
 }
 
-#btn-new-game:hover,
-#btn-new-game:focus-visible,
-#btn-extras:hover,
-#btn-extras:focus-visible,
 #btn-extras-back:hover,
 #btn-extras-back:focus-visible {
   background: #fff;
   outline: none;
 }
 
-#btn-new-game:hover span,
-#btn-new-game:focus-visible span,
-#btn-extras:hover span,
-#btn-extras:focus-visible span,
 #btn-extras-back:hover span,
 #btn-extras-back:focus-visible span {
   background-image: var(--gradient-panel);
