@@ -1049,8 +1049,19 @@ const CUTSCENE_CHARACTERS = {
   arden: {
     name: "Arden",
     portraits: {}
+  },
+  // Killer T Cell has no art yet (idle/hurt/shocked all TBD) — portrait stays
+  // hidden for his lines the same way Arden's does, until sprites arrive.
+  killerTcell: {
+    name: "Killer T Cell",
+    portraits: {}
   }
 };
+
+// Placeholder line for Killer T Cell — real dialogue TBD once he's fleshed out.
+const KILLER_TCELL_LINES = [
+  { speaker: "killerTcell", text: "[placeholder]" }
+];
 
 const NM_CONVERSATION_BEFORE = [
   { speaker: "neutrophil", mood: "idle", text: "So, how's your patrol route?" },
@@ -1141,6 +1152,10 @@ const CTC_MONOLOGUE_3 = [
 
 const cutsceneScreen = document.getElementById("cutscene-screen");
 const cutsceneStageEl = document.getElementById("cutscene-stage");
+const cutsceneBg = document.getElementById("cutscene-bg");
+const cutscene1bBg = document.getElementById("cutscene1b-bg");
+const btnScrollLeft = document.getElementById("btn-scroll-left");
+const btnScrollRight = document.getElementById("btn-scroll-right");
 const cutscene2Screen = document.getElementById("cutscene2-screen");
 const battleScreenEl = document.getElementById("battle-screen");
 const dialoguePortrait = document.getElementById("dialogue-portrait");
@@ -1165,14 +1180,34 @@ const btnReturnTitle = document.getElementById("btn-return-title");
 const cutsceneBubbles = {
   neutrophil: document.getElementById("bubble-neutrophil"),
   macrophage: document.getElementById("bubble-macrophage"),
-  ctc: document.getElementById("bubble-ctc")
+  ctc: document.getElementById("bubble-ctc"),
+  killerTcell: document.getElementById("bubble-killer-tcell")
 };
 
 const cutsceneHotspots = {
   neutrophil: document.getElementById("hotspot-neutrophil"),
   macrophage: document.getElementById("hotspot-macrophage"),
-  ctc: document.getElementById("hotspot-ctc")
+  ctc: document.getElementById("hotspot-ctc"),
+  killerTcell: document.getElementById("hotspot-killer-tcell")
 };
+
+// Cutscene 1 spans two "rooms" sharing one stage/dialogue box — the main
+// room (Neutrophil/Macrophage/CTC) and a hallway to its left (Killer T Cell).
+const MAIN_ROOM_CHARACTER_IDS = ["neutrophil", "macrophage", "ctc"];
+const HALLWAY_CHARACTER_IDS = ["killerTcell"];
+let cutsceneRoom = "main";
+
+function showCutsceneRoom(room) {
+  cutsceneRoom = room;
+  const isMain = room === "main";
+  cutsceneBg.hidden = !isMain;
+  cutscene1bBg.hidden = isMain;
+  btnScrollLeft.hidden = !isMain;
+  btnScrollRight.hidden = isMain;
+  MAIN_ROOM_CHARACTER_IDS.forEach((id) => { cutsceneHotspots[id].hidden = !isMain; });
+  HALLWAY_CHARACTER_IDS.forEach((id) => { cutsceneHotspots[id].hidden = isMain; });
+  hideBubbles(cutsceneBubbles);
+}
 
 const cutscene2Bubbles = {
   neutrophil: document.getElementById("bubble2-neutrophil"),
@@ -1296,6 +1331,10 @@ function triggerShockEvent() {
 }
 
 function handleHotspotClick(charId) {
+  if (charId === "killerTcell") {
+    cutscene1Dialogue.open(KILLER_TCELL_LINES);
+    return;
+  }
   if (charId === "ctc") {
     const lines = cutsceneStage === "before" ? CTC_MONOLOGUE_BEFORE : CTC_MONOLOGUE_AFTER;
     cutscene1Dialogue.open(lines, () => {
@@ -1397,6 +1436,8 @@ wireHotspots(cutscene3Hotspots, cutscene3Bubbles, handleHotspot3Click);
 
 btnContinueFighting.addEventListener("click", goToBattle);
 btnGoToBattle2.addEventListener("click", goToBattle2);
+btnScrollLeft.addEventListener("click", () => showCutsceneRoom("hallway"));
+btnScrollRight.addEventListener("click", () => showCutsceneRoom("main"));
 btnReturnTitle.addEventListener("click", () => {
   cutscene3Screen.hidden = true;
   titleScreen.hidden = false;
