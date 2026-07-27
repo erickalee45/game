@@ -24,9 +24,9 @@ body {
 }
 
 #battle-screen[hidden],
-#post-battle2-screen[hidden],
 #cutscene-screen[hidden],
 #cutscene2-screen[hidden],
+#cutscene3-screen[hidden],
 #title-screen[hidden],
 #extras-screen[hidden],
 #gore-warning-modal[hidden] {
@@ -93,8 +93,7 @@ body {
 
 /* ---------- Extras ---------- */
 
-#extras-screen,
-#post-battle2-screen {
+#extras-screen {
   position: fixed;
   inset: 0;
   background: var(--gradient-body);
@@ -132,8 +131,7 @@ body {
   -webkit-text-fill-color: transparent;
 }
 
-#extras-content,
-#post-battle2-content {
+#extras-content {
   width: 100%;
   max-width: 480px;
   display: flex;
@@ -142,8 +140,7 @@ body {
   gap: 20px;
 }
 
-#extras-content p,
-#post-battle2-content p {
+#extras-content p {
   width: 100%;
   margin: 0;
   background: var(--gradient-panel);
@@ -215,7 +212,8 @@ body {
 /* ---------- Cutscene ---------- */
 
 #cutscene-screen,
-#cutscene2-screen {
+#cutscene2-screen,
+#cutscene3-screen {
   position: fixed;
   inset: 0;
   background: var(--gradient-body);
@@ -226,7 +224,8 @@ body {
 }
 
 #cutscene-stage,
-#cutscene2-stage {
+#cutscene2-stage,
+#cutscene3-stage {
   position: relative;
   width: min(100vw, calc(100vh * 1920 / 1080));
   height: min(100vh, calc(100vw * 1080 / 1920));
@@ -251,7 +250,8 @@ body {
 }
 
 #cutscene-bg,
-#cutscene2-bg {
+#cutscene2-bg,
+#cutscene3-bg {
   display: block;
   width: 100%;
   height: 100%;
@@ -313,7 +313,8 @@ body {
 }
 
 #dialogue-box,
-#dialogue2-box {
+#dialogue2-box,
+#dialogue3-box {
   position: absolute;
   left: 22%;
   right: 3%;
@@ -328,7 +329,8 @@ body {
 }
 
 #dialogue-box[hidden],
-#dialogue2-box[hidden] {
+#dialogue2-box[hidden],
+#dialogue3-box[hidden] {
   display: none;
 }
 
@@ -346,7 +348,8 @@ body {
 /* Cutscene: sized relative to the letterboxed stage itself, VN-style —
    nearly as tall as the scene, regardless of window shape. */
 #dialogue-portrait,
-#dialogue2-portrait {
+#dialogue2-portrait,
+#dialogue3-portrait {
   height: 85%;
 }
 
@@ -368,18 +371,21 @@ body {
 }
 
 #dialogue-speaker,
-#dialogue2-speaker {
+#dialogue2-speaker,
+#dialogue3-speaker {
   font-weight: bold;
   margin-bottom: 6px;
 }
 
 #dialogue-text,
-#dialogue2-text {
+#dialogue2-text,
+#dialogue3-text {
   font-size: 14px;
 }
 
 #dialogue-hint,
-#dialogue2-hint {
+#dialogue2-hint,
+#dialogue3-hint {
   margin-top: 8px;
   font-size: 11px;
   opacity: 0.75;
@@ -387,7 +393,8 @@ body {
 }
 
 #btn-continue-fighting,
-#btn-continue-battle2 {
+#btn-continue-battle2,
+#btn-return-title {
   position: absolute;
   right: 20px;
   bottom: 20px;
@@ -403,14 +410,17 @@ body {
 }
 
 #btn-continue-fighting[hidden],
-#btn-continue-battle2[hidden] {
+#btn-continue-battle2[hidden],
+#btn-return-title[hidden] {
   display: none;
 }
 
 #btn-continue-fighting:hover,
 #btn-continue-fighting:focus-visible,
 #btn-continue-battle2:hover,
-#btn-continue-battle2:focus-visible {
+#btn-continue-battle2:focus-visible,
+#btn-return-title:hover,
+#btn-return-title:focus-visible {
   background: #fff;
   outline: none;
 }
@@ -418,7 +428,9 @@ body {
 #btn-continue-fighting:hover span,
 #btn-continue-fighting:focus-visible span,
 #btn-continue-battle2:hover span,
-#btn-continue-battle2:focus-visible span {
+#btn-continue-battle2:focus-visible span,
+#btn-return-title:hover span,
+#btn-return-title:focus-visible span {
   background-image: var(--gradient-panel);
   background-clip: text;
   -webkit-background-clip: text;

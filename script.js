@@ -1016,7 +1016,7 @@ btnContinueCutscene2.addEventListener("click", () => {
 });
 btnContinuePostBattle2.addEventListener("click", () => {
   battleScreenEl.hidden = true;
-  postBattle2Screen.hidden = false;
+  cutscene3Screen.hidden = false;
 });
 
 beginBattle(buildBattle1Queue, btnContinueCutscene2);
@@ -1117,6 +1117,28 @@ const CTC_MONOLOGUE_2 = [
   { speaker: "ctc", mood: "idle", text: "\"Yes.\"", thought: true }
 ];
 
+// Cutscene 3: the "victory" cutscene after TB is defeated.
+const NM_CONVERSATION_3 = [
+  { speaker: "neutrophil", mood: "idle", text: "Glad that's over." },
+  { speaker: "macrophage", mood: "idle", text: "I still can't believe a tuberculosis bacterium invaded through broken skin. They don't usually do that." },
+  { speaker: "neutrophil", mood: "idle", text: "At least we handled it." },
+  { speaker: "macrophage", mood: "idle", text: "That's true." },
+  { speaker: "neutrophil", mood: "idle", text: "See you after work?" },
+  { speaker: "macrophage", mood: "idle", text: "Yeah. Of course." }
+];
+
+// CTC's half is again a text conversation with Arden, same visual treatment
+// (quoted + italic/grey .inner-thought) as cutscenes 1 and 2.
+const CTC_MONOLOGUE_3 = [
+  { speaker: "ctc", mood: "idle", text: "\"Just finished. Dealt with something bigger than usual.\"", thought: true },
+  { speaker: "arden", text: "\"you ok??\"", thought: true },
+  { speaker: "ctc", mood: "idle", text: "\"Yes. Just tired.\"", thought: true },
+  { speaker: "arden", text: "\"come home soon\"", thought: true },
+  { speaker: "ctc", mood: "idle", text: "\"Affirmative.\"", thought: true },
+  { speaker: "ctc", mood: "blush", text: "\"...\"", thought: true },
+  { speaker: "ctc", mood: "blush", text: "\"..I love you too.\"", thought: true }
+];
+
 const cutsceneScreen = document.getElementById("cutscene-screen");
 const cutsceneStageEl = document.getElementById("cutscene-stage");
 const cutscene2Screen = document.getElementById("cutscene2-screen");
@@ -1127,12 +1149,18 @@ const dialogueSpeaker = document.getElementById("dialogue-speaker");
 const dialogueText = document.getElementById("dialogue-text");
 const btnContinueFighting = document.getElementById("btn-continue-fighting");
 const btnGoToBattle2 = document.getElementById("btn-continue-battle2");
-const postBattle2Screen = document.getElementById("post-battle2-screen");
+const cutscene3Screen = document.getElementById("cutscene3-screen");
 
 const dialogue2Portrait = document.getElementById("dialogue2-portrait");
 const dialogue2Box = document.getElementById("dialogue2-box");
 const dialogue2Speaker = document.getElementById("dialogue2-speaker");
 const dialogue2Text = document.getElementById("dialogue2-text");
+
+const dialogue3Portrait = document.getElementById("dialogue3-portrait");
+const dialogue3Box = document.getElementById("dialogue3-box");
+const dialogue3Speaker = document.getElementById("dialogue3-speaker");
+const dialogue3Text = document.getElementById("dialogue3-text");
+const btnReturnTitle = document.getElementById("btn-return-title");
 
 const cutsceneBubbles = {
   neutrophil: document.getElementById("bubble-neutrophil"),
@@ -1156,6 +1184,18 @@ const cutscene2Hotspots = {
   neutrophil: document.getElementById("hotspot2-neutrophil"),
   macrophage: document.getElementById("hotspot2-macrophage"),
   ctc: document.getElementById("hotspot2-ctc")
+};
+
+const cutscene3Bubbles = {
+  neutrophil: document.getElementById("bubble3-neutrophil"),
+  macrophage: document.getElementById("bubble3-macrophage"),
+  ctc: document.getElementById("bubble3-ctc")
+};
+
+const cutscene3Hotspots = {
+  neutrophil: document.getElementById("hotspot3-neutrophil"),
+  macrophage: document.getElementById("hotspot3-macrophage"),
+  ctc: document.getElementById("hotspot3-ctc")
 };
 
 // "before" = pre-infection small talk; "after" = post-shock, everyone's on alert.
@@ -1230,6 +1270,7 @@ function createDialogueEngine(box, portrait, speaker, text, onOpen) {
 
 const cutscene1Dialogue = createDialogueEngine(dialogueBox, dialoguePortrait, dialogueSpeaker, dialogueText, () => hideBubbles(cutsceneBubbles));
 const cutscene2Dialogue = createDialogueEngine(dialogue2Box, dialogue2Portrait, dialogue2Speaker, dialogue2Text, () => hideBubbles(cutscene2Bubbles));
+const cutscene3Dialogue = createDialogueEngine(dialogue3Box, dialogue3Portrait, dialogue3Speaker, dialogue3Text, () => hideBubbles(cutscene3Bubbles));
 
 function shakeScreen() {
   cutsceneStageEl.classList.remove("shake");
@@ -1308,6 +1349,29 @@ function goToBattle2() {
   beginBattle(buildBattle2Queue, btnContinuePostBattle2, beginTBEncounter);
 }
 
+let nmDialogue3Read = false;
+let ctcDialogue3Read = false;
+
+function handleHotspot3Click(charId) {
+  if (charId === "ctc") {
+    cutscene3Dialogue.open(CTC_MONOLOGUE_3, () => {
+      ctcDialogue3Read = true;
+      checkCutscene3Progress();
+    });
+  } else {
+    cutscene3Dialogue.open(NM_CONVERSATION_3, () => {
+      nmDialogue3Read = true;
+      checkCutscene3Progress();
+    });
+  }
+}
+
+function checkCutscene3Progress() {
+  if (nmDialogue3Read && ctcDialogue3Read) {
+    btnReturnTitle.hidden = false;
+  }
+}
+
 function wireHotspots(hotspots, bubbles, onClick) {
   Object.entries(hotspots).forEach(([charId, hotspot]) => {
     const bubble = bubbles[charId];
@@ -1329,9 +1393,14 @@ function wireHotspots(hotspots, bubbles, onClick) {
 
 wireHotspots(cutsceneHotspots, cutsceneBubbles, handleHotspotClick);
 wireHotspots(cutscene2Hotspots, cutscene2Bubbles, handleHotspot2Click);
+wireHotspots(cutscene3Hotspots, cutscene3Bubbles, handleHotspot3Click);
 
 btnContinueFighting.addEventListener("click", goToBattle);
 btnGoToBattle2.addEventListener("click", goToBattle2);
+btnReturnTitle.addEventListener("click", () => {
+  cutscene3Screen.hidden = true;
+  titleScreen.hidden = false;
+});
 
 // ---------- Title / Extras ----------
 

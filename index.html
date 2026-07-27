@@ -145,10 +145,35 @@
 
   </div>
 
-  <div id="post-battle2-screen" hidden>
-    <div id="post-battle2-content">
-      <p>[placeholder]</p>
+  <div id="cutscene3-screen" hidden>
+
+    <div id="cutscene3-stage">
+      <img id="cutscene3-bg" src="assets/cutscene_3.png" alt="Rest hub — Neutrophil, Macrophage, and Cytotoxic T Cell, after defeating TB.">
+
+      <button type="button" class="hotspot" id="hotspot3-neutrophil" style="left:39.1%; top:6.9%; width:16.7%; height:69.4%;" aria-label="Talk to Neutrophil"></button>
+      <button type="button" class="hotspot" id="hotspot3-macrophage" style="left:57%; top:0.3%; width:19.3%; height:76.1%;" aria-label="Talk to Macrophage"></button>
+      <button type="button" class="hotspot" id="hotspot3-ctc" style="left:92.2%; top:0.5%; width:7.8%; height:60.6%;" aria-label="Talk to Cytotoxic T Cell"></button>
+
+      <div class="speech-bubble" id="bubble3-neutrophil" hidden style="left:40%; top:4%;">
+        <span></span><span></span><span></span>
+      </div>
+      <div class="speech-bubble" id="bubble3-macrophage" hidden style="left:62%; top:0%;">
+        <span></span><span></span><span></span>
+      </div>
+      <div class="speech-bubble" id="bubble3-ctc" hidden style="right:calc(7.8% + 10px); top:2%;">
+        <span></span><span></span><span></span>
+      </div>
+
+      <img id="dialogue3-portrait" class="dialogue-portrait" alt="" hidden>
+      <div id="dialogue3-box" hidden>
+        <div id="dialogue3-speaker"></div>
+        <div id="dialogue3-text"></div>
+        <div id="dialogue3-hint">(click to close)</div>
+      </div>
     </div>
+
+    <button id="btn-return-title" hidden><span>Return to Title -&gt;</span></button>
+
   </div>
 
 <script src="script.js"></script>
