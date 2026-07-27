@@ -1057,6 +1057,17 @@ const CUTSCENE_CHARACTERS = {
       hurt: "assets/ktc/hurt-portrait.png",
       shocked: "assets/ktc/shocked-portrait.png"
     }
+  },
+  // Not battle-usable yet (no pixel sprite/moveset), so only cutscene
+  // portraits are wired up for now — shocked is unused until he's equippable
+  // and can be active when TB is revealed.
+  dc: {
+    name: "Dendritic Cell",
+    portraits: {
+      idle: "assets/dc/idle-portrait.png",
+      hurt: "assets/dc/hurt-portrait.png",
+      shocked: "assets/dc/shocked-portrait.png"
+    }
   }
 };
 
@@ -1137,6 +1148,18 @@ const CTC_MONOLOGUE_2 = [
   { speaker: "ctc", mood: "idle", text: "\"Yes.\"", thought: true }
 ];
 
+// Killer T Cell and Dendritic Cell's side room — they're talking to each
+// other, so either hotspot opens the same shared conversation.
+const KTC_DC_CONVERSATION_2 = [
+  { speaker: "killerTcell", mood: "idle", text: "How's the infection going?" },
+  { speaker: "dc", mood: "idle", text: "As planned, mostly." },
+  { speaker: "killerTcell", mood: "idle", text: "Good to hear. You taking any breaks?" },
+  { speaker: "dc", mood: "idle", text: "..no. Not yet. I will after." },
+  { speaker: "killerTcell", mood: "idle", text: "..." },
+  { speaker: "killerTcell", mood: "idle", text: "You'd better. Don't overwork yourself." },
+  { speaker: "dc", mood: "idle", text: "..I won't." }
+];
+
 // Cutscene 3: the "victory" cutscene after TB is defeated.
 const NM_CONVERSATION_3 = [
   { speaker: "neutrophil", mood: "idle", text: "Glad that's over." },
@@ -1159,6 +1182,16 @@ const CTC_MONOLOGUE_3 = [
   { speaker: "ctc", mood: "blush", text: "\"..I love you too.\"", thought: true }
 ];
 
+// Same side room, reused as-is for cutscene 3 (see cutscene3b-bg) — Killer T
+// Cell and Dendritic Cell get a new conversation, still shared either hotspot.
+const KTC_DC_CONVERSATION_3 = [
+  { speaker: "dc", mood: "idle", text: "How are your injuries?" },
+  { speaker: "killerTcell", mood: "idle", text: "They're fine." },
+  { speaker: "dc", mood: "idle", text: "Okay. I'll be home a bit late. I still have some paperwork I need to fill out." },
+  { speaker: "killerTcell", mood: "idle", text: "..Okay." },
+  { speaker: "killerTcell", mood: "idle", text: "...see you home soon." }
+];
+
 const cutsceneScreen = document.getElementById("cutscene-screen");
 const cutsceneStageEl = document.getElementById("cutscene-stage");
 const cutsceneBg = document.getElementById("cutscene-bg");
@@ -1166,6 +1199,10 @@ const cutscene1bBg = document.getElementById("cutscene1b-bg");
 const btnScrollLeft = document.getElementById("btn-scroll-left");
 const btnScrollRight = document.getElementById("btn-scroll-right");
 const cutscene2Screen = document.getElementById("cutscene2-screen");
+const cutscene2Bg = document.getElementById("cutscene2-bg");
+const cutscene2bBg = document.getElementById("cutscene2b-bg");
+const btnScrollLeft2 = document.getElementById("btn-scroll-left2");
+const btnScrollRight2 = document.getElementById("btn-scroll-right2");
 const battleScreenEl = document.getElementById("battle-screen");
 const dialoguePortrait = document.getElementById("dialogue-portrait");
 const dialogueBox = document.getElementById("dialogue-box");
@@ -1174,6 +1211,10 @@ const dialogueText = document.getElementById("dialogue-text");
 const btnContinueFighting = document.getElementById("btn-continue-fighting");
 const btnGoToBattle2 = document.getElementById("btn-continue-battle2");
 const cutscene3Screen = document.getElementById("cutscene3-screen");
+const cutscene3Bg = document.getElementById("cutscene3-bg");
+const cutscene3bBg = document.getElementById("cutscene3b-bg");
+const btnScrollLeft3 = document.getElementById("btn-scroll-left3");
+const btnScrollRight3 = document.getElementById("btn-scroll-right3");
 
 const dialogue2Portrait = document.getElementById("dialogue2-portrait");
 const dialogue2Box = document.getElementById("dialogue2-box");
@@ -1200,46 +1241,54 @@ const cutsceneHotspots = {
   killerTcell: document.getElementById("hotspot-killer-tcell")
 };
 
-// Cutscene 1 spans two "rooms" sharing one stage/dialogue box — the main
-// room (Neutrophil/Macrophage/CTC) and a hallway to its left (Killer T Cell).
-const MAIN_ROOM_CHARACTER_IDS = ["neutrophil", "macrophage", "ctc"];
-const HALLWAY_CHARACTER_IDS = ["killerTcell"];
-let cutsceneRoom = "main";
-
-function showCutsceneRoom(room) {
-  cutsceneRoom = room;
-  const isMain = room === "main";
-  cutsceneBg.hidden = !isMain;
-  cutscene1bBg.hidden = isMain;
-  btnScrollLeft.hidden = !isMain;
-  btnScrollRight.hidden = isMain;
-  MAIN_ROOM_CHARACTER_IDS.forEach((id) => { cutsceneHotspots[id].hidden = !isMain; });
-  HALLWAY_CHARACTER_IDS.forEach((id) => { cutsceneHotspots[id].hidden = isMain; });
-  hideBubbles(cutsceneBubbles);
+// Cutscenes 1-3 each span two "rooms" sharing one stage/dialogue box — the
+// main room, and a side room reached by scrolling left/right between them.
+function createRoomScroller({ mainBg, altBg, btnLeft, btnRight, mainHotspots, altHotspots, bubbles }) {
+  function show(room) {
+    const isMain = room === "main";
+    mainBg.hidden = !isMain;
+    altBg.hidden = isMain;
+    btnLeft.hidden = !isMain;
+    btnRight.hidden = isMain;
+    mainHotspots.forEach((hotspot) => { hotspot.hidden = !isMain; });
+    altHotspots.forEach((hotspot) => { hotspot.hidden = isMain; });
+    hideBubbles(bubbles);
+  }
+  btnLeft.addEventListener("click", () => show("alt"));
+  btnRight.addEventListener("click", () => show("main"));
+  return { show };
 }
 
 const cutscene2Bubbles = {
   neutrophil: document.getElementById("bubble2-neutrophil"),
   macrophage: document.getElementById("bubble2-macrophage"),
-  ctc: document.getElementById("bubble2-ctc")
+  ctc: document.getElementById("bubble2-ctc"),
+  killerTcell: document.getElementById("bubble2-killer-tcell"),
+  dc: document.getElementById("bubble2-dc")
 };
 
 const cutscene2Hotspots = {
   neutrophil: document.getElementById("hotspot2-neutrophil"),
   macrophage: document.getElementById("hotspot2-macrophage"),
-  ctc: document.getElementById("hotspot2-ctc")
+  ctc: document.getElementById("hotspot2-ctc"),
+  killerTcell: document.getElementById("hotspot2-killer-tcell"),
+  dc: document.getElementById("hotspot2-dc")
 };
 
 const cutscene3Bubbles = {
   neutrophil: document.getElementById("bubble3-neutrophil"),
   macrophage: document.getElementById("bubble3-macrophage"),
-  ctc: document.getElementById("bubble3-ctc")
+  ctc: document.getElementById("bubble3-ctc"),
+  killerTcell: document.getElementById("bubble3-killer-tcell"),
+  dc: document.getElementById("bubble3-dc")
 };
 
 const cutscene3Hotspots = {
   neutrophil: document.getElementById("hotspot3-neutrophil"),
   macrophage: document.getElementById("hotspot3-macrophage"),
-  ctc: document.getElementById("hotspot3-ctc")
+  ctc: document.getElementById("hotspot3-ctc"),
+  killerTcell: document.getElementById("hotspot3-killer-tcell"),
+  dc: document.getElementById("hotspot3-dc")
 };
 
 // "before" = pre-infection small talk; "after" = post-shock, everyone's on alert.
@@ -1368,6 +1417,10 @@ let nmDialogue2Read = false;
 let ctcDialogue2Read = false;
 
 function handleHotspot2Click(charId) {
+  if (charId === "killerTcell" || charId === "dc") {
+    cutscene2Dialogue.open(KTC_DC_CONVERSATION_2);
+    return;
+  }
   if (charId === "ctc") {
     cutscene2Dialogue.open(CTC_MONOLOGUE_2, () => {
       ctcDialogue2Read = true;
@@ -1402,6 +1455,10 @@ let nmDialogue3Read = false;
 let ctcDialogue3Read = false;
 
 function handleHotspot3Click(charId) {
+  if (charId === "killerTcell" || charId === "dc") {
+    cutscene3Dialogue.open(KTC_DC_CONVERSATION_3);
+    return;
+  }
   if (charId === "ctc") {
     cutscene3Dialogue.open(CTC_MONOLOGUE_3, () => {
       ctcDialogue3Read = true;
@@ -1444,10 +1501,38 @@ wireHotspots(cutsceneHotspots, cutsceneBubbles, handleHotspotClick);
 wireHotspots(cutscene2Hotspots, cutscene2Bubbles, handleHotspot2Click);
 wireHotspots(cutscene3Hotspots, cutscene3Bubbles, handleHotspot3Click);
 
+createRoomScroller({
+  mainBg: cutsceneBg,
+  altBg: cutscene1bBg,
+  btnLeft: btnScrollLeft,
+  btnRight: btnScrollRight,
+  mainHotspots: [cutsceneHotspots.neutrophil, cutsceneHotspots.macrophage, cutsceneHotspots.ctc],
+  altHotspots: [cutsceneHotspots.killerTcell],
+  bubbles: cutsceneBubbles
+});
+
+createRoomScroller({
+  mainBg: cutscene2Bg,
+  altBg: cutscene2bBg,
+  btnLeft: btnScrollLeft2,
+  btnRight: btnScrollRight2,
+  mainHotspots: [cutscene2Hotspots.neutrophil, cutscene2Hotspots.macrophage, cutscene2Hotspots.ctc],
+  altHotspots: [cutscene2Hotspots.killerTcell, cutscene2Hotspots.dc],
+  bubbles: cutscene2Bubbles
+});
+
+createRoomScroller({
+  mainBg: cutscene3Bg,
+  altBg: cutscene3bBg,
+  btnLeft: btnScrollLeft3,
+  btnRight: btnScrollRight3,
+  mainHotspots: [cutscene3Hotspots.neutrophil, cutscene3Hotspots.macrophage, cutscene3Hotspots.ctc],
+  altHotspots: [cutscene3Hotspots.killerTcell, cutscene3Hotspots.dc],
+  bubbles: cutscene3Bubbles
+});
+
 btnContinueFighting.addEventListener("click", goToBattle);
 btnGoToBattle2.addEventListener("click", goToBattle2);
-btnScrollLeft.addEventListener("click", () => showCutsceneRoom("hallway"));
-btnScrollRight.addEventListener("click", () => showCutsceneRoom("main"));
 btnReturnTitle.addEventListener("click", () => {
   cutscene3Screen.hidden = true;
   titleScreen.hidden = false;

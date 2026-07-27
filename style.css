@@ -249,27 +249,29 @@ body {
   90% { transform: translate(-1px, 1px); }
 }
 
+/* Each cutscene's two rooms (the base *-bg plus its *1b/2b/3b-bg counterpart)
+   stack on top of each other within the same stage via position:absolute
+   instead of flowing one after another, so both line up identically
+   regardless of which one is hidden. */
 #cutscene-bg,
 #cutscene1b-bg,
 #cutscene2-bg,
-#cutscene3-bg {
+#cutscene2b-bg,
+#cutscene3-bg,
+#cutscene3b-bg {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
   height: 100%;
 }
 
-/* Cutscene 1's second "room" (cutscene1b-bg) stacks on top of the main room
-   image within the same stage rather than flowing after it in normal layout —
-   #cutscene-bg gets the same treatment so both line up identically regardless
-   of which one is hidden. */
-#cutscene-bg,
-#cutscene1b-bg {
-  position: absolute;
-  inset: 0;
-}
-
 #cutscene-bg[hidden],
-#cutscene1b-bg[hidden] {
+#cutscene1b-bg[hidden],
+#cutscene2-bg[hidden],
+#cutscene2b-bg[hidden],
+#cutscene3-bg[hidden],
+#cutscene3b-bg[hidden] {
   display: none;
 }
 
@@ -323,11 +325,15 @@ body {
   animation-delay: 0.3s;
 }
 
-/* Cutscene 1's left/right room-scroll arrows — left shows in the main room
-   (scrolls to Killer T Cell's hallway), right shows in that hallway (scrolls
+/* Each cutscene's left/right room-scroll arrows — left shows in the main
+   room (scrolls to the side room), right shows in that side room (scrolls
    back to the main room). */
 #btn-scroll-left,
-#btn-scroll-right {
+#btn-scroll-right,
+#btn-scroll-left2,
+#btn-scroll-right2,
+#btn-scroll-left3,
+#btn-scroll-right3 {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
@@ -349,23 +355,39 @@ body {
   transition: background 0.1s, color 0.1s;
 }
 
-#btn-scroll-left {
+#btn-scroll-left,
+#btn-scroll-left2,
+#btn-scroll-left3 {
   left: 2%;
 }
 
-#btn-scroll-right {
+#btn-scroll-right,
+#btn-scroll-right2,
+#btn-scroll-right3 {
   right: 2%;
 }
 
 #btn-scroll-left[hidden],
-#btn-scroll-right[hidden] {
+#btn-scroll-right[hidden],
+#btn-scroll-left2[hidden],
+#btn-scroll-right2[hidden],
+#btn-scroll-left3[hidden],
+#btn-scroll-right3[hidden] {
   display: none;
 }
 
 #btn-scroll-left:hover,
 #btn-scroll-left:focus-visible,
 #btn-scroll-right:hover,
-#btn-scroll-right:focus-visible {
+#btn-scroll-right:focus-visible,
+#btn-scroll-left2:hover,
+#btn-scroll-left2:focus-visible,
+#btn-scroll-right2:hover,
+#btn-scroll-right2:focus-visible,
+#btn-scroll-left3:hover,
+#btn-scroll-left3:focus-visible,
+#btn-scroll-right3:hover,
+#btn-scroll-right3:focus-visible {
   background: #fff;
   outline: none;
 }
@@ -373,7 +395,15 @@ body {
 #btn-scroll-left:hover span,
 #btn-scroll-left:focus-visible span,
 #btn-scroll-right:hover span,
-#btn-scroll-right:focus-visible span {
+#btn-scroll-right:focus-visible span,
+#btn-scroll-left2:hover span,
+#btn-scroll-left2:focus-visible span,
+#btn-scroll-right2:hover span,
+#btn-scroll-right2:focus-visible span,
+#btn-scroll-left3:hover span,
+#btn-scroll-left3:focus-visible span,
+#btn-scroll-right3:hover span,
+#btn-scroll-right3:focus-visible span {
   background-image: var(--gradient-panel);
   background-clip: text;
   -webkit-background-clip: text;
