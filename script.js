@@ -1050,17 +1050,24 @@ const CUTSCENE_CHARACTERS = {
     name: "Arden",
     portraits: {}
   },
-  // Killer T Cell has no art yet (idle/hurt/shocked all TBD) — portrait stays
-  // hidden for his lines the same way Arden's does, until sprites arrive.
   killerTcell: {
     name: "Killer T Cell",
-    portraits: {}
+    portraits: {
+      idle: "assets/ktc/idle-portrait.png",
+      hurt: "assets/ktc/hurt-portrait.png",
+      shocked: "assets/ktc/shocked-portrait.png"
+    }
   }
 };
 
-// Placeholder line for Killer T Cell — real dialogue TBD once he's fleshed out.
-const KILLER_TCELL_LINES = [
-  { speaker: "killerTcell", text: "[placeholder]" }
+const KILLER_TCELL_LINES_BEFORE = [
+  { speaker: "killerTcell", mood: "idle", text: "(Nothing unusual. Yet.)", thought: true },
+  { speaker: "killerTcell", mood: "idle", text: "(Should still be on schedule for the debrief later.)", thought: true },
+  { speaker: "killerTcell", mood: "idle", text: "(..I wonder if Dendritic Cell's taken any breaks today.)", thought: true }
+];
+
+const KILLER_TCELL_LINES_AFTER = [
+  { speaker: "killerTcell", mood: "idle", text: "(I should get back to work.)", thought: true }
 ];
 
 const NM_CONVERSATION_BEFORE = [
@@ -1090,9 +1097,11 @@ const SHOCK_EVENT_LINES = [
   { speaker: "neutrophil", mood: "shocked", text: "...!!" },
   { speaker: "macrophage", mood: "shocked", text: "...!!" },
   { speaker: "ctc", mood: "shocked", text: "...!!" },
+  { speaker: "killerTcell", mood: "shocked", text: "...!!" },
   { speaker: "neutrophil", mood: "shocked", text: "...spoke too soon about things being quiet." },
   { speaker: "macrophage", mood: "hurt", text: "Move." },
-  { speaker: "ctc", mood: "idle", text: "(Back to work, then.)", thought: true }
+  { speaker: "ctc", mood: "idle", text: "(Back to work, then.)", thought: true },
+  { speaker: "killerTcell", mood: "shocked", text: "(I guess he's not getting a break today.)", thought: true }
 ];
 
 const SHOCK_EVENT_DELAY_MS = 500;
@@ -1332,7 +1341,8 @@ function triggerShockEvent() {
 
 function handleHotspotClick(charId) {
   if (charId === "killerTcell") {
-    cutscene1Dialogue.open(KILLER_TCELL_LINES);
+    const lines = cutsceneStage === "before" ? KILLER_TCELL_LINES_BEFORE : KILLER_TCELL_LINES_AFTER;
+    cutscene1Dialogue.open(lines);
     return;
   }
   if (charId === "ctc") {
