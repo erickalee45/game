@@ -1953,7 +1953,12 @@ let currentCharacterProfileId = null;
 
 function buildExtrasCharacterList() {
   extrasCharacterList.innerHTML = "";
-  Object.keys(CHARACTER_PROFILES).forEach((charId) => {
+  // Sorted by display name (not insertion order) so the hub stays
+  // alphabetical regardless of the order characters are added below.
+  const sortedIds = Object.keys(CHARACTER_PROFILES).sort((a, b) =>
+    CHARACTER_PROFILES[a].name.localeCompare(CHARACTER_PROFILES[b].name)
+  );
+  sortedIds.forEach((charId) => {
     const profile = CHARACTER_PROFILES[charId];
     const btn = document.createElement("button");
     btn.type = "button";
