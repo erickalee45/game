@@ -5,6 +5,7 @@ const ROSTER = [
     maxHp: 100,
     hp: 100,
     stunned: false,
+    defending: false,
     attackMin: 10,
     attackMax: 20,
     sprite: {
@@ -53,6 +54,7 @@ const ROSTER = [
     maxHp: 130,
     hp: 130,
     stunned: false,
+    defending: false,
     attackMin: 10,
     attackMax: 20,
     sprite: {
@@ -103,6 +105,7 @@ const ROSTER = [
     maxHp: 110,
     hp: 110,
     stunned: false,
+    defending: false,
     attackMin: 10,
     attackMax: 20,
     sprite: {
@@ -153,6 +156,7 @@ const ROSTER = [
     maxHp: 110,
     hp: 110,
     stunned: false,
+    defending: false,
     attackMin: 10,
     attackMax: 20,
     sprite: {
@@ -193,6 +197,57 @@ const ROSTER = [
           const self = getActiveFighter();
           return self.hp > 0 && self.hp / self.maxHp <= 0.5;
         }
+      }
+    ]
+  },
+  {
+    id: "dc",
+    name: "Dendritic Cell",
+    maxHp: 90,
+    hp: 90,
+    stunned: false,
+    defending: false,
+    // Ticks down every turn regardless of who's equipped — see
+    // tickFirstAidCooldown().
+    firstAidCooldown: 0,
+    attackMin: 10,
+    attackMax: 20,
+    sprite: {
+      type: "animated",
+      frames: ["assets/dc/frame-0.png", "assets/dc/frame-1.png", "assets/dc/frame-2.png"],
+      frameDurationMs: 500
+    },
+    // Canon height 6'3" — tallest of the roster. The art itself was sized
+    // against 5'11" though, so the sprite is scaled from that instead.
+    spriteSize: 101,
+    type: "phagocyte",
+    // No weakness at all — like Macrophage, handles bacteria and viruses fine.
+    weakAgainst: [],
+    portrait: { idle: "assets/dc/battle-portrait.png", hurt: "assets/dc/hurt-portrait.png", shocked: "assets/dc/shocked-portrait.png" },
+    // Intelligence Gatherer: boosts every teammate's damage 1.1x for as long
+    // as he's alive anywhere on the roster — see applyIntelGathererBoost().
+    passive: { type: "intelGatherer" },
+    moves: [
+      {
+        id: "defend",
+        name: "Defend",
+        description: "Stand your ground and brace for it.",
+        isDefend: true,
+        isAvailable: () => true
+      },
+      {
+        id: "first-aid",
+        name: "First Aid",
+        description: "Patch up a teammate.",
+        isFirstAid: true,
+        isAvailable: () => ROSTER.find((f) => f.id === "dc").firstAidCooldown <= 0
+      },
+      {
+        id: "immobilize",
+        name: "Immobilize",
+        description: "Buy some time.",
+        isImmobilize: true,
+        isAvailable: () => true
       }
     ]
   }
@@ -306,7 +361,8 @@ const TB_REACTION_LINES = {
   macrophage: "(That's not possible.)",
   ctc: "(I thought this species entered through the lungs. Not here.)",
   // Placeholder — no line given for him yet.
-  killerTcell: "(...didn't expect that.)"
+  killerTcell: "(...didn't expect that.)",
+  dc: "(...that shouldn't be here. Strange..)"
 };
 
 // Regular Fight 1: guaranteed one bacterium then one virus, both the "normal"
@@ -411,6 +467,9 @@ let activeFighterId = DEFAULT_FIGHTER_ID;
 let ctcAnimationTimer = null;
 let enemyAnimationTimer = null;
 let awaitingForcedSwitch = false;
+// "switch" (normal Switch Character panel) or "heal" (First Aid target picker)
+// — controls what clicking a roster-entry button does in rebuildSwitchPanel().
+let switchPanelMode = "switch";
 let awaitingCutsceneTransition = false;
 // Set while the gore-warning modal / TB reveal sequence is playing out, so the
 // "steps exhausted" branch in advanceBattleDialogue doesn't prematurely unlock
@@ -531,6 +590,8 @@ function closeSwitchPanel() {
 }
 
 function toggleSwitchPanel() {
+  switchPanelMode = "switch";
+  rebuildSwitchPanel();
   switchPanel.hidden = !switchPanel.hidden;
 }
 
@@ -556,6 +617,7 @@ function switchFighter(fighterId) {
 
 function rebuildSwitchPanel() {
   switchPanel.innerHTML = "";
+  const isHealMode = switchPanelMode === "heal";
   ROSTER.forEach((fighter) => {
     const isActive = fighter.id === activeFighterId;
     const isFainted = fighter.hp <= 0;
@@ -566,8 +628,16 @@ function rebuildSwitchPanel() {
     const label = document.createElement("span");
     label.textContent = `${fighter.name}${status} — ${Math.max(0, fighter.hp)}/${fighter.maxHp} HP`;
     entry.appendChild(label);
-    entry.disabled = isActive || isFainted;
-    entry.addEventListener("click", () => switchFighter(fighter.id));
+    // In heal mode the active fighter (including Dendritic Cell himself) is a
+    // valid target — only a fainted fighter is off-limits either way.
+    entry.disabled = isFainted || (!isHealMode && isActive);
+    entry.addEventListener("click", () => {
+      if (isHealMode) {
+        healFighter(fighter.id);
+      } else {
+        switchFighter(fighter.id);
+      }
+    });
     switchPanel.appendChild(entry);
   });
 }
@@ -578,8 +648,64 @@ function beginForcedSwitch(fallenFighter) {
   moveButtons.length = 0;
   moveDescription.textContent = "Choose a fighter to send out!";
   btnSwitch.hidden = true;
+  switchPanelMode = "switch";
   switchPanel.hidden = false;
   rebuildSwitchPanel();
+}
+
+// First Aid (Dendritic Cell): lets the player pick any living teammate
+// (himself included) to heal, reusing the same roster panel as Switch
+// Character but in "heal" mode.
+function beginHealTargetSelection() {
+  // Wiped (not just disabled) so a stray hover/leave on a leftover move
+  // button can't reset moveDescription out from under this prompt.
+  moveButtonsEl.innerHTML = "";
+  moveButtons.length = 0;
+  moveDescription.textContent = "Choose a fighter to heal!";
+  btnSwitch.hidden = true;
+  switchPanelMode = "heal";
+  switchPanel.hidden = false;
+  rebuildSwitchPanel();
+}
+
+function healFighter(fighterId) {
+  const target = ROSTER.find((fighter) => fighter.id === fighterId);
+  if (!target || target.hp <= 0) return;
+  const healer = getActiveFighter();
+  switchPanelMode = "switch";
+  btnSwitch.hidden = false;
+  closeSwitchPanel();
+  // Restore the healer's own move buttons (wiped by beginHealTargetSelection)
+  // so they're ready to unlock once this turn's steps finish, then keep them
+  // locked for the rest of the turn same as any other move.
+  buildMoveButtons(healer);
+  setMovesLocked(true);
+  runBattleSteps(buildFirstAidSteps(healer, target));
+}
+
+const FIRST_AID_HEAL_MIN_PERCENT = 0.15;
+const FIRST_AID_HEAL_MAX_PERCENT = 0.2;
+const FIRST_AID_COOLDOWN_TURNS = 2;
+
+function tickFirstAidCooldown() {
+  const dc = ROSTER.find((fighter) => fighter.id === "dc");
+  if (dc.firstAidCooldown > 0) dc.firstAidCooldown--;
+}
+
+function buildFirstAidSteps(healer, target) {
+  const healPercent = FIRST_AID_HEAL_MIN_PERCENT + Math.random() * (FIRST_AID_HEAL_MAX_PERCENT - FIRST_AID_HEAL_MIN_PERCENT);
+  const targetHpAfterHeal = Math.min(target.maxHp, target.hp + Math.max(1, Math.round(target.maxHp * healPercent)));
+  const actualHeal = targetHpAfterHeal - target.hp;
+
+  const steps = [{
+    text: `${healer.name} uses First Aid on ${target.name}, restoring ${actualHeal} HP.`,
+    mood: "idle",
+    apply: () => { target.hp = targetHpAfterHeal; refreshDisplay(); }
+  }];
+
+  ROSTER.find((fighter) => fighter.id === "dc").firstAidCooldown = FIRST_AID_COOLDOWN_TURNS;
+
+  return appendEnemyTurnSteps(steps, healer, enemy.hp, enemy.bleeding, enemy.immobilizedTurns);
 }
 
 function renderSprite(fighter) {
@@ -710,11 +836,24 @@ function pushEnemyDefeatedSteps(steps, fighter) {
   return steps;
 }
 
-// Waxy Coating (TB): hits from phagocyte-type fighters (Neutrophil, Macrophage)
-// land 15% softer — Cytotoxic T Cell (adaptive-type) deals damage normally.
+// Waxy Coating (TB): hits from phagocyte-type fighters (Neutrophil, Macrophage,
+// Dendritic Cell) land 15% softer — adaptive-type fighters deal damage normally.
 function applyWaxyCoating(damage, fighter) {
   if (enemy.passive?.type === "waxyCoating" && fighter.type === "phagocyte") {
     return Math.max(1, Math.round(damage * (1 - enemy.passive.reduction)));
+  }
+  return damage;
+}
+
+const INTEL_GATHERER_MULTIPLIER = 1.1;
+
+// Intelligence Gatherer (Dendritic Cell): every team member's damage output
+// (including his own) is boosted 1.1x as long as he's alive anywhere on the
+// roster — gone the instant his HP hits 0, regardless of who's equipped.
+function applyIntelGathererBoost(damage) {
+  const dc = ROSTER.find((f) => f.id === "dc");
+  if (dc && dc.hp > 0) {
+    return Math.max(1, Math.round(damage * INTEL_GATHERER_MULTIPLIER));
   }
   return damage;
 }
@@ -730,7 +869,8 @@ function computePlayerDamage(fighter, move) {
   const weaknessMultiplier = isNotVeryEffective ? 0.5 : 1;
 
   if (move.isCrush) {
-    const damage = applyWaxyCoating(Math.max(1, Math.round(enemy.hp * 0.5 * weaknessMultiplier)), fighter);
+    let damage = applyWaxyCoating(Math.max(1, Math.round(enemy.hp * 0.5 * weaknessMultiplier)), fighter);
+    damage = applyIntelGathererBoost(damage);
     return { damage, isCrit: false, isOneShot: false, isNotVeryEffective };
   }
 
@@ -742,11 +882,56 @@ function computePlayerDamage(fighter, move) {
   }
   roll *= weaknessMultiplier;
 
-  const damage = applyWaxyCoating(Math.max(1, Math.round(roll)), fighter);
+  let damage = applyWaxyCoating(Math.max(1, Math.round(roll)), fighter);
+  damage = applyIntelGathererBoost(damage);
   return { damage, isCrit, isOneShot: false, isNotVeryEffective };
 }
 
+// Defend (Dendritic Cell): braces for the enemy's next attack instead of
+// attacking — the actual damage split/reflect happens in appendEnemyTurnSteps.
+function buildDefendSteps(fighter) {
+  // Set synchronously (not deferred to apply()) since appendEnemyTurnSteps
+  // below reads it in this same build pass, before any step has been shown.
+  fighter.defending = true;
+  const steps = [{
+    text: `${fighter.name} braces for the next attack.`,
+    mood: "idle",
+    apply: () => {}
+  }];
+  return appendEnemyTurnSteps(steps, fighter, enemy.hp, enemy.bleeding, enemy.immobilizedTurns);
+}
+
+// Immobilize (Dendritic Cell): guaranteed stun that skips the enemy's turn
+// entirely, then forces the player to send out a different fighter.
+function buildImmobilizeSteps(fighter) {
+  return [
+    {
+      text: `${fighter.name} uses Immobilize on ${enemy.name}!`,
+      mood: "idle",
+      apply: () => {}
+    },
+    {
+      text: `${enemy.name} is stunned and can't move!`,
+      mood: "idle",
+      portraitSource: enemy.portrait ? enemy : undefined,
+      apply: () => {}
+    },
+    {
+      text: `${fighter.name} falls back — choose another fighter to send out!`,
+      mood: "idle",
+      apply: () => { beginForcedSwitch(fighter); }
+    }
+  ];
+}
+
 function buildTurnSteps(fighter, move) {
+  if (move.isDefend) {
+    return buildDefendSteps(fighter);
+  }
+  if (move.isImmobilize) {
+    return buildImmobilizeSteps(fighter);
+  }
+
   const steps = [];
 
   // ---- Player's move ----
@@ -795,6 +980,7 @@ function buildTurnSteps(fighter, move) {
 // straight from the enemy's side, using whatever state the enemy already has
 // (no player action happened this turn to change it).
 function buildStunnedTurnSteps(fighter) {
+  tickFirstAidCooldown();
   const steps = [{
     text: `${fighter.name} is stunned and can't move!`,
     mood: "idle",
@@ -849,6 +1035,11 @@ function decideTBMove(fighter) {
 }
 
 function appendEnemyTurnSteps(steps, fighter, enemyHpAfterMove, enemyBleedingAfterMove, enemyImmobilizedTurnsAfterMove) {
+  // Defend (Dendritic Cell) only ever covers the single enemy turn immediately
+  // following it — consumed here regardless of which path this turn takes.
+  const wasDefending = fighter.defending;
+  fighter.defending = false;
+
   // ---- Enemy's turn ----
   steps.push({
     text: `${enemy.name} is deciding...`,
@@ -882,6 +1073,14 @@ function appendEnemyTurnSteps(steps, fighter, enemyHpAfterMove, enemyBleedingAft
     tankTriggered = true;
   }
 
+  // ---- Defend ----
+  let reflectedDamage = 0;
+  if (wasDefending) {
+    const halved = Math.floor(enemyDamage / 2);
+    enemyDamage -= halved;
+    reflectedDamage = applyIntelGathererBoost(applyWaxyCoating(halved, fighter));
+  }
+
   const fighterHpAfterAttack = fighter.hp - enemyDamage;
 
   // Unshaken makes CTC fully immune to stun — the roll never even happens for him.
@@ -903,6 +1102,21 @@ function appendEnemyTurnSteps(steps, fighter, enemyHpAfterMove, enemyBleedingAft
       refreshDisplay();
     }
   });
+
+  let enemyHpAfterReflect = enemyHpAfterMove;
+  if (reflectedDamage > 0) {
+    enemyHpAfterReflect = enemyHpAfterMove - reflectedDamage;
+    steps.push({
+      text: `${fighter.name} absorbs the hit and reflects ${reflectedDamage} damage back onto ${enemy.name}!`,
+      mood: enemy.portrait ? "hurt" : "idle",
+      portraitSource: enemy.portrait ? enemy : undefined,
+      apply: () => { enemy.hp = enemyHpAfterReflect; flashDamage(spriteEnemy); refreshDisplay(); }
+    });
+
+    if (enemyHpAfterReflect <= 0) {
+      return pushEnemyDefeatedSteps(steps, fighter);
+    }
+  }
 
   if (fighterHpAfterAttack <= 0) {
     const hasHealthyTeammate = ROSTER.some((other) => other.id !== fighter.id && other.hp > 0);
@@ -931,11 +1145,12 @@ function appendEnemyTurnSteps(steps, fighter, enemyHpAfterMove, enemyBleedingAft
   }
 
   // ---- Corrosive Blood ----
-  let enemyHpAfterCorrosive = enemyHpAfterMove;
+  let enemyHpAfterCorrosive = enemyHpAfterReflect;
   if (fighter.passive?.type === "corrosiveBlood") {
     const reflectPercent = fighter.passive.minPercent + Math.random() * (fighter.passive.maxPercent - fighter.passive.minPercent);
-    const reflectDamage = applyWaxyCoating(Math.max(1, Math.round(enemy.maxHp * reflectPercent)), fighter);
-    enemyHpAfterCorrosive = enemyHpAfterMove - reflectDamage;
+    let reflectDamage = applyWaxyCoating(Math.max(1, Math.round(enemy.maxHp * reflectPercent)), fighter);
+    reflectDamage = applyIntelGathererBoost(reflectDamage);
+    enemyHpAfterCorrosive = enemyHpAfterReflect - reflectDamage;
     steps.push({
       text: `${fighter.name}'s Corrosive Blood deals ${reflectDamage} damage to ${enemy.name}.`,
       mood: enemy.portrait ? "hurt" : "idle",
@@ -978,7 +1193,12 @@ function appendBleedTail(steps, fighter, enemyHpBeforeBleed, enemyBleedingAfterM
 
 function useMove(fighter, move) {
   if (battleOver) return;
+  tickFirstAidCooldown();
   setMovesLocked(true);
+  if (move.isFirstAid) {
+    beginHealTargetSelection();
+    return;
+  }
   runBattleSteps(buildTurnSteps(fighter, move));
 }
 
@@ -996,7 +1216,10 @@ function beginBattle(queueBuilder, victoryButton, onQueueComplete = endBattleWit
   ROSTER.forEach((fighter) => {
     fighter.hp = fighter.maxHp;
     fighter.stunned = false;
+    fighter.defending = false;
+    if (fighter.id === "dc") fighter.firstAidCooldown = 0;
   });
+  switchPanelMode = "switch";
   battleOver = false;
   activeFighterId = DEFAULT_FIGHTER_ID;
   awaitingForcedSwitch = false;
