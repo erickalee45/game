@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Battle Loop — Placeholder</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div id="title-screen">
+    <div id="title-stage">
+      <img id="title-bg" src="assets/title_screen.png" alt="Containment">
+      <button type="button" id="btn-new-game" style="left:37.19%; top:42.22%; width:24.32%; height:21.67%;" aria-label="New Game"></button>
+      <button type="button" id="btn-extras" style="left:41.61%; top:62.04%; width:15.47%; height:18.15%;" aria-label="Extras"></button>
+    </div>
+  </div>
+
+  <div id="extras-screen" hidden>
+    <div id="extras-content">
+      <h1 id="extras-title">Character Profiles</h1>
+      <div id="extras-character-list"></div>
+      <button id="btn-extras-back"><span>Go Back</span></button>
+    </div>
+  </div>
+
+  <div id="character-extras-screen" hidden>
+    <div id="character-extras-content">
+      <button id="btn-character-extras-back"><span>Go Back</span></button>
+
+      <h1 id="character-extras-name"></h1>
+      <div id="character-extras-division"></div>
+
+      <div id="character-extras-top">
+        <div id="character-extras-sprite-col">
+          <img id="character-extras-sprite" alt="">
+          <select id="character-extras-mood-select"></select>
+        </div>
+        <div id="character-extras-description"></div>
+      </div>
+
+      <div id="character-extras-connections">
+        <h2>Connections</h2>
+        <div id="character-extras-connections-list"></div>
+      </div>
+
+      <div id="character-extras-links">
+        <h2>Resources</h2>
+        <div id="character-extras-links-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="cutscene-screen" hidden>
+
+    <div id="cutscene-stage">
+      <img id="cutscene-bg" src="assets/cutscene_1.png" alt="Rest hub — Neutrophil, Macrophage, and Cytotoxic T Cell.">
+      <img id="cutscene1b-bg" src="assets/cutscene_1b.png" alt="Rest hub hallway — Killer T Cell." hidden>
+
+      <button type="button" class="hotspot" id="hotspot-neutrophil" style="left:34.9%; top:8.8%; width:13.5%; height:64.3%;" aria-label="Talk to Neutrophil"></button>
+      <button type="button" class="hotspot" id="hotspot-macrophage" style="left:51.6%; top:1.9%; width:16.1%; height:71.3%;" aria-label="Talk to Macrophage"></button>
+      <button type="button" class="hotspot" id="hotspot-ctc" style="left:93.2%; top:0.9%; width:6.8%; height:59.3%;" aria-label="Talk to Cytotoxic T Cell"></button>
+      <button type="button" class="hotspot" id="hotspot-killer-tcell" hidden style="left:51.3%; top:0.9%; width:16.2%; height:89.4%;" aria-label="Talk to Killer T Cell"></button>
+
+      <div class="speech-bubble" id="bubble-neutrophil" hidden style="right:calc(65.1% + 10px); top:10%;">
+        <span></span><span></span><span></span>
+      </div>
+      <div class="speech-bubble" id="bubble-macrophage" hidden style="left:calc(67.7% + 10px); top:5%;">
+        <span></span><span></span><span></span>
+      </div>
+      <div class="speech-bubble" id="bubble-ctc" hidden style="right:calc(6.8% + 10px); top:3%;">
+        <span></span><span></span><span></span>
+      </div>
+      <div class="speech-bubble" id="bubble-killer-tcell" hidden style="left:calc(51.3% + 10px); top:0%;">
+        <span></span><span></span><span></span>
+      </div>
+
+      <button type="button" id="btn-scroll-left" aria-label="Scroll left"><span>&#8592;</span></button>
+      <button type="button" id="btn-scroll-right" hidden aria-label="Scroll right"><span>&#8594;</span></button>
+
+      <img id="dialogue-portrait" class="dialogue-portrait" alt="" hidden>
+      <div id="dialogue-box" hidden>
+        <div id="dialogue-speaker"></div>
+        <div id="dialogue-text"></div>
+        <div id="dialogue-hint">(click to close)</div>
+      </div>
+    </div>
+
+    <button id="btn-continue-fighting" hidden><span>Continue Fighting -&gt;</span></button>
+
+  </div>
+
+  <div id="battle-screen" hidden>
+
+    <div id="battle-stage">
+
+      <div class="fighter-panel" id="panel-player">
+        <div class="fighter-name" id="name-player"></div>
+        <div class="hp-bar-outer">
+          <div class="hp-bar-trail" id="hp-bar-trail-player"></div>
+          <div class="hp-bar-inner" id="hp-bar-player"></div>
+        </div>
+        <div class="hp-text" id="hp-text-player"></div>
+        <div class="sprite-placeholder" id="sprite-player">
+          <img id="sprite-player-img" class="sprite-img" alt="" hidden>
+        </div>
+        <button id="btn-switch"><span>Switch Character</span></button>
+        <div id="switch-panel" hidden></div>
+      </div>
+
+      <div id="move-panel">
+        <div id="move-description">Hover or focus a move to see what it does.</div>
+        <div id="move-buttons"></div>
+      </div>
+
+      <div class="fighter-panel" id="panel-enemy">
+        <div class="fighter-name" id="name-enemy"></div>
+        <div class="hp-bar-outer">
+          <div class="hp-bar-trail" id="hp-bar-trail-enemy"></div>
+          <div class="hp-bar-inner" id="hp-bar-enemy"></div>
+        </div>
+        <div class="hp-text" id="hp-text-enemy"></div>
+        <div class="sprite-placeholder" id="sprite-enemy">
+          <img id="sprite-enemy-img" class="sprite-img" alt="" hidden>
+        </div>
+        <div class="switch-btn-spacer" aria-hidden="true"><span>Switch Character</span></div>
+      </div>
+
+    </div>
+
+    <button id="btn-restart" style="display:none;"><span>Restart</span></button>
+
+    <img id="battle-dialogue-portrait" class="dialogue-portrait" alt="" hidden>
+    <div id="battle-dialogue-box">
+      <div id="battle-dialogue-text"></div>
+      <div id="battle-dialogue-hint">(click to continue)</div>
+    </div>
+
+    <button id="btn-continue-cutscene2" hidden><span>Continue to Cutscene -&gt;</span></button>
+    <button id="btn-continue-post-battle2" hidden><span>Continue -&gt;</span></button>
+
+  </div>
+
+  <div id="gore-warning-modal" hidden>
+    <div id="gore-warning-box">
+      <p>Heads up! The boss for this stage has some blood on their design. Are you okay with seeing blood?</p>
+      <div id="gore-warning-actions">
+        <button id="btn-gore-yes"><span>Yes</span></button>
+        <button id="btn-gore-no"><span>No</span></button>
+      </div>
+    </div>
+  </div>
+
+  <div id="cutscene2-screen" hidden>
+
+    <div id="cutscene2-stage">
+      <img id="cutscene2-bg" src="assets/cutscene_2.png" alt="Rest hub — Neutrophil, Macrophage, and Cytotoxic T Cell, some time later.">
+      <img id="cutscene2b-bg" src="assets/cutscene_2b.png" alt="Rest hub hallway — Killer T Cell and Dendritic Cell." hidden>
+
+      <button type="button" class="hotspot" id="hotspot2-neutrophil" style="left:39.1%; top:6.9%; width:16.7%; height:69.4%;" aria-label="Talk to Neutrophil"></button>
+      <button type="button" class="hotspot" id="hotspot2-macrophage" style="left:57%; top:0.3%; width:19.3%; height:76.1%;" aria-label="Talk to Macrophage"></button>
+      <button type="button" class="hotspot" id="hotspot2-ctc" style="left:92.2%; top:0.5%; width:7.8%; height:60.6%;" aria-label="Talk to Cytotoxic T Cell"></button>
+      <button type="button" class="hotspot" id="hotspot2-killer-tcell" hidden style="left:51.3%; top:0.9%; width:16.2%; height:89.4%;" aria-label="Talk to Killer T Cell"></button>
+      <button type="button" class="hotspot" id="hotspot2-dc" hidden style="left:17.7%; top:0.5%; width:23.2%; height:92.1%;" aria-label="Talk to Dendritic Cell"></button>
+
+      <div class="speech-bubble" id="bubble2-neutrophil" hidden style="left:40%; top:4%;">
+        <span></span><span></span><span></span>
+      </div>
+      <div class="speech-bubble" id="bubble2-macrophage" hidden style="left:62%; top:0%;">
+        <span></span><span></span><span></span>
+      </div>
+      <div class="speech-bubble" id="bubble2-ctc" hidden style="right:calc(7.8% + 10px); top:2%;">
+        <span></span><span></span><span></span>
+      </div>
+      <div class="speech-bubble" id="bubble2-killer-tcell" hidden style="left:calc(51.3% + 10px); top:0%;">
+        <span></span><span></span><span></span>
+      </div>
+      <div class="speech-bubble" id="bubble2-dc" hidden style="left:calc(17.7% + 10px); top:0%;">
+        <span></span><span></span><span></span>
+      </div>
+
+      <button type="button" id="btn-scroll-left2" aria-label="Scroll left"><span>&#8592;</span></button>
+      <button type="button" id="btn-scroll-right2" hidden aria-label="Scroll right"><span>&#8594;</span></button>
+
+      <img id="dialogue2-portrait" class="dialogue-portrait" alt="" hidden>
+      <div id="dialogue2-box" hidden>
+        <div id="dialogue2-speaker"></div>
+        <div id="dialogue2-text"></div>
+        <div id="dialogue2-hint">(click to close)</div>
+      </div>
+    </div>
+
+    <button id="btn-continue-battle2" hidden><span>Continue to Battle -&gt;</span></button>
+
+  </div>
+
+  <div id="cutscene3-screen" hidden>
+
+    <div id="cutscene3-stage">
+      <img id="cutscene3-bg" src="assets/cutscene_3.png" alt="Rest hub — Neutrophil, Macrophage, and Cytotoxic T Cell, after defeating TB.">
+      <img id="cutscene3b-bg" src="assets/cutscene_2b.png" alt="Rest hub hallway — Killer T Cell and Dendritic Cell." hidden>
+
+      <button type="button" class="hotspot" id="hotspot3-neutrophil" style="left:39.1%; top:6.9%; width:16.7%; height:69.4%;" aria-label="Talk to Neutrophil"></button>
+      <button type="button" class="hotspot" id="hotspot3-macrophage" style="left:57%; top:0.3%; width:19.3%; height:76.1%;" aria-label="Talk to Macrophage"></button>
+      <button type="button" class="hotspot" id="hotspot3-ctc" style="left:92.2%; top:0.5%; width:7.8%; height:60.6%;" aria-label="Talk to Cytotoxic T Cell"></button>
+      <button type="button" class="hotspot" id="hotspot3-killer-tcell" hidden style="left:51.3%; top:0.9%; width:16.2%; height:89.4%;" aria-label="Talk to Killer T Cell"></button>
+      <button type="button" class="hotspot" id="hotspot3-dc" hidden style="left:17.7%; top:0.5%; width:23.2%; height:92.1%;" aria-label="Talk to Dendritic Cell"></button>
+
+      <div class="speech-bubble" id="bubble3-neutrophil" hidden style="left:40%; top:4%;">
+        <span></span><span></span><span></span>
+      </div>
+      <div class="speech-bubble" id="bubble3-macrophage" hidden style="left:62%; top:0%;">
+        <span></span><span></span><span></span>
+      </div>
+      <div class="speech-bubble" id="bubble3-ctc" hidden style="right:calc(7.8% + 10px); top:2%;">
+        <span></span><span></span><span></span>
+      </div>
+      <div class="speech-bubble" id="bubble3-killer-tcell" hidden style="left:calc(51.3% + 10px); top:0%;">
+        <span></span><span></span><span></span>
+      </div>
+      <div class="speech-bubble" id="bubble3-dc" hidden style="left:calc(17.7% + 10px); top:0%;">
+        <span></span><span></span><span></span>
+      </div>
+
+      <button type="button" id="btn-scroll-left3" aria-label="Scroll left"><span>&#8592;</span></button>
+      <button type="button" id="btn-scroll-right3" hidden aria-label="Scroll right"><span>&#8594;</span></button>
+
+      <img id="dialogue3-portrait" class="dialogue-portrait" alt="" hidden>
+      <div id="dialogue3-box" hidden>
+        <div id="dialogue3-speaker"></div>
+        <div id="dialogue3-text"></div>
+        <div id="dialogue3-hint">(click to close)</div>
+      </div>
+    </div>
+
+    <button id="btn-return-title" hidden><span>Return to Title -&gt;</span></button>
+
+  </div>
+
+<script src="script.js"></script>
+</body>
+</html>
