@@ -6,6 +6,7 @@ const ROSTER = [
     hp: 100,
     stunned: false,
     defending: false,
+    unlocked: true,
     attackMin: 10,
     attackMax: 20,
     sprite: {
@@ -55,6 +56,7 @@ const ROSTER = [
     hp: 130,
     stunned: false,
     defending: false,
+    unlocked: true,
     attackMin: 10,
     attackMax: 20,
     sprite: {
@@ -106,6 +108,7 @@ const ROSTER = [
     hp: 110,
     stunned: false,
     defending: false,
+    unlocked: true,
     attackMin: 10,
     attackMax: 20,
     sprite: {
@@ -157,6 +160,7 @@ const ROSTER = [
     hp: 110,
     stunned: false,
     defending: false,
+    unlocked: true,
     attackMin: 10,
     attackMax: 20,
     sprite: {
@@ -207,6 +211,8 @@ const ROSTER = [
     hp: 90,
     stunned: false,
     defending: false,
+    // Not selectable until he's actually introduced, in battle 2.
+    unlocked: false,
     // Ticks down every turn regardless of who's equipped — see
     // tickFirstAidCooldown().
     firstAidCooldown: 0,
@@ -601,7 +607,7 @@ function switchFighter(fighterId) {
     return;
   }
   const target = ROSTER.find((fighter) => fighter.id === fighterId);
-  if (!target || target.hp <= 0) {
+  if (!target || target.hp <= 0 || !target.unlocked) {
     return;
   }
   activeFighterId = fighterId;
@@ -619,6 +625,7 @@ function rebuildSwitchPanel() {
   switchPanel.innerHTML = "";
   const isHealMode = switchPanelMode === "heal";
   ROSTER.forEach((fighter) => {
+    if (!fighter.unlocked) return;
     const isActive = fighter.id === activeFighterId;
     const isFainted = fighter.hp <= 0;
     const entry = document.createElement("button");
@@ -670,7 +677,7 @@ function beginHealTargetSelection() {
 
 function healFighter(fighterId) {
   const target = ROSTER.find((fighter) => fighter.id === fighterId);
-  if (!target || target.hp <= 0) return;
+  if (!target || target.hp <= 0 || !target.unlocked) return;
   const healer = getActiveFighter();
   switchPanelMode = "switch";
   btnSwitch.hidden = false;
@@ -852,7 +859,7 @@ const INTEL_GATHERER_MULTIPLIER = 1.1;
 // roster — gone the instant his HP hits 0, regardless of who's equipped.
 function applyIntelGathererBoost(damage) {
   const dc = ROSTER.find((f) => f.id === "dc");
-  if (dc && dc.hp > 0) {
+  if (dc && dc.unlocked && dc.hp > 0) {
     return Math.max(1, Math.round(damage * INTEL_GATHERER_MULTIPLIER));
   }
   return damage;
@@ -1119,7 +1126,7 @@ function appendEnemyTurnSteps(steps, fighter, enemyHpAfterMove, enemyBleedingAft
   }
 
   if (fighterHpAfterAttack <= 0) {
-    const hasHealthyTeammate = ROSTER.some((other) => other.id !== fighter.id && other.hp > 0);
+    const hasHealthyTeammate = ROSTER.some((other) => other.id !== fighter.id && other.hp > 0 && other.unlocked);
     if (hasHealthyTeammate) {
       steps.push({
         text: `${fighter.name} has fallen! Choose another fighter.`,
@@ -1219,6 +1226,11 @@ function beginBattle(queueBuilder, victoryButton, onQueueComplete = endBattleWit
     fighter.defending = false;
     if (fighter.id === "dc") fighter.firstAidCooldown = 0;
   });
+  // Dendritic Cell isn't introduced until cutscene 2 — unlock him for good
+  // once battle 2 is reached (sticky: a battle-1 restart never re-locks him).
+  if (queueBuilder === buildBattle2Queue) {
+    ROSTER.find((fighter) => fighter.id === "dc").unlocked = true;
+  }
   switchPanelMode = "switch";
   battleOver = false;
   activeFighterId = DEFAULT_FIGHTER_ID;
