@@ -1850,7 +1850,38 @@ const btnCharacterExtrasBack = document.getElementById("btn-character-extras-bac
 // One entry per character with a written-up extras page — the hub list below
 // is built straight from this object's keys, so adding a new character here
 // is the only step needed to make them show up.
+// Placeholder text/connections/links for characters whose write-up isn't
+// ready yet — only the portrait dropdown is real, using the actual cropped
+// art already in assets/. Swap the bracketed strings out once written.
+const PLACEHOLDER_DIVISION = "[Division TBD]";
+const PLACEHOLDER_DESCRIPTION = "[Description coming soon.]";
+
 const CHARACTER_PROFILES = {
+  neutrophil: {
+    name: "Neutrophil",
+    division: PLACEHOLDER_DIVISION,
+    description: PLACEHOLDER_DESCRIPTION,
+    portraits: [
+      { label: "Idle", src: "assets/neutrophil/idle-portrait.png" },
+      { label: "Hurt", src: "assets/neutrophil/hurt-portrait.png" },
+      { label: "Shocked", src: "assets/neutrophil/shocked-portrait.png" },
+      { label: "Battle", src: "assets/neutrophil/battle-portrait.png" }
+    ],
+    connections: [],
+    links: []
+  },
+  macrophage: {
+    name: "Macrophage",
+    division: PLACEHOLDER_DIVISION,
+    description: PLACEHOLDER_DESCRIPTION,
+    portraits: [
+      { label: "Idle", src: "assets/macrophage/idle-portrait.png" },
+      { label: "Hurt", src: "assets/macrophage/hurt-portrait.png" },
+      { label: "Shocked", src: "assets/macrophage/shocked-portrait.png" }
+    ],
+    connections: [],
+    links: []
+  },
   ctc: {
     name: "Cytotoxic T Cell",
     division: "CD8+ T Cell Division",
@@ -1876,6 +1907,45 @@ const CHARACTER_PROFILES = {
       { label: "His TH Profile", url: "https://toyhou.se/35388978.cytotoxic-t-cell" },
       { label: "More on his backstory/childhood", url: "https://toyhou.se/~literature/356650.cell-world-lore/3.t-cell-training/" }
     ]
+  },
+  killerTcell: {
+    name: "Killer T Cell",
+    division: PLACEHOLDER_DIVISION,
+    description: PLACEHOLDER_DESCRIPTION,
+    portraits: [
+      { label: "Idle", src: "assets/ktc/idle-portrait.png" },
+      { label: "Hurt", src: "assets/ktc/hurt-portrait.png" },
+      { label: "Shocked", src: "assets/ktc/shocked-portrait.png" },
+      { label: "Battle", src: "assets/ktc/battle-portrait.png" }
+    ],
+    connections: [],
+    links: []
+  },
+  dc: {
+    name: "Dendritic Cell",
+    division: PLACEHOLDER_DIVISION,
+    description: PLACEHOLDER_DESCRIPTION,
+    portraits: [
+      { label: "Idle", src: "assets/dc/idle-portrait.png" },
+      { label: "Hurt", src: "assets/dc/hurt-portrait.png" },
+      { label: "Shocked", src: "assets/dc/shocked-portrait.png" },
+      { label: "Battle", src: "assets/dc/battle-portrait.png" }
+    ],
+    connections: [],
+    links: []
+  },
+  tb: {
+    name: "Tuberculosis",
+    division: PLACEHOLDER_DIVISION,
+    description: PLACEHOLDER_DESCRIPTION,
+    portraits: [
+      { label: "Idle (No Gore)", src: "assets/tb/idle-nogore-portrait.png" },
+      { label: "Idle (Gore)", src: "assets/tb/idle-gore-portrait.png" },
+      { label: "Hurt (No Gore)", src: "assets/tb/hurt-nogore-portrait.png" },
+      { label: "Hurt (Gore)", src: "assets/tb/hurt-gore-portrait.png" }
+    ],
+    connections: [],
+    links: []
   }
 };
 
@@ -1917,6 +1987,12 @@ function showCharacterProfile(charId) {
   characterExtrasSprite.alt = `${profile.name} — ${profile.portraits[0].label}`;
 
   characterExtrasConnectionsList.innerHTML = "";
+  if (profile.connections.length === 0) {
+    const note = document.createElement("p");
+    note.className = "extras-placeholder-note";
+    note.textContent = "[Connections coming soon.]";
+    characterExtrasConnectionsList.appendChild(note);
+  }
   profile.connections.forEach((connection) => {
     const entry = document.createElement("div");
     entry.className = "connection-entry";
@@ -1932,6 +2008,12 @@ function showCharacterProfile(charId) {
   });
 
   characterExtrasLinksList.innerHTML = "";
+  if (profile.links.length === 0) {
+    const note = document.createElement("p");
+    note.className = "extras-placeholder-note";
+    note.textContent = "[Resource links coming soon.]";
+    characterExtrasLinksList.appendChild(note);
+  }
   profile.links.forEach((link) => {
     const a = document.createElement("a");
     a.href = link.url;

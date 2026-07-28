@@ -325,6 +325,13 @@ body {
   line-height: 1.5;
 }
 
+.extras-placeholder-note {
+  margin: 0;
+  color: #f2dfe1;
+  font-style: italic;
+  font-size: 13px;
+}
+
 #character-extras-links-list {
   display: flex;
   flex-wrap: wrap;
