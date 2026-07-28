@@ -144,6 +144,57 @@ const ROSTER = [
         isAvailable: () => true
       }
     ]
+  },
+  {
+    id: "killerTcell",
+    name: "Killer T Cell",
+    // Placeholder — no HP/height given yet, so these match Cytotoxic T Cell's
+    // numbers and the baseline sprite size pending real values.
+    maxHp: 110,
+    hp: 110,
+    stunned: false,
+    attackMin: 10,
+    attackMax: 20,
+    sprite: {
+      type: "animated",
+      frames: ["assets/ktc/frame-0.png", "assets/ktc/frame-1.png", "assets/ktc/frame-2.png"],
+      frameDurationMs: 500
+    },
+    spriteSize: 96,
+    type: "adaptive",
+    // Base weakness per his (adaptive) type — Grudge cancels it out entirely,
+    // see computePlayerDamage.
+    weakAgainst: ["bacteria"],
+    portrait: { idle: "assets/ktc/battle-portrait.png", hurt: "assets/ktc/hurt-portrait.png", shocked: "assets/ktc/shocked-portrait.png" },
+    // Grudge: fully ignores his weakness to bacteria — like Macrophage, he
+    // takes no penalty against either enemy type.
+    passive: { type: "grudge" },
+    moves: [
+      {
+        id: "slash",
+        name: "Slash",
+        description: "Stab them.",
+        damageMultiplier: 1,
+        isAvailable: () => true
+      },
+      {
+        id: "shoot",
+        name: "Shoot",
+        description: "Shoot them.",
+        damageMultiplier: 1,
+        isAvailable: () => true
+      },
+      {
+        id: "cold-fury",
+        name: "Cold Fury",
+        description: "Make them pay.",
+        damageMultiplier: 2,
+        isAvailable: () => {
+          const self = getActiveFighter();
+          return self.hp > 0 && self.hp / self.maxHp <= 0.5;
+        }
+      }
+    ]
   }
 ];
 
@@ -253,7 +304,9 @@ const TB_AMBUSH_CHARGE_TURNS = 2;
 const TB_REACTION_LINES = {
   neutrophil: "(...that's not supposed to be here.)",
   macrophage: "(That's not possible.)",
-  ctc: "(I thought this species entered through the lungs. Not here.)"
+  ctc: "(I thought this species entered through the lungs. Not here.)",
+  // Placeholder — no line given for him yet.
+  killerTcell: "(...didn't expect that.)"
 };
 
 // Regular Fight 1: guaranteed one bacterium then one virus, both the "normal"
@@ -671,7 +724,9 @@ function computePlayerDamage(fighter, move) {
     return { damage: enemy.hp, isCrit: false, isOneShot: true, isNotVeryEffective: false };
   }
 
-  const isNotVeryEffective = fighter.weakAgainst?.includes(enemy.type) ?? false;
+  // Grudge (Killer T Cell): ignores his weakness to bacteria entirely.
+  const isGrudgeImmune = fighter.passive?.type === "grudge";
+  const isNotVeryEffective = !isGrudgeImmune && (fighter.weakAgainst?.includes(enemy.type) ?? false);
   const weaknessMultiplier = isNotVeryEffective ? 0.5 : 1;
 
   if (move.isCrush) {
