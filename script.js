@@ -1832,9 +1832,137 @@ btnReturnTitle.addEventListener("click", () => {
 
 const titleScreen = document.getElementById("title-screen");
 const extrasScreen = document.getElementById("extras-screen");
+const extrasCharacterList = document.getElementById("extras-character-list");
 const btnNewGame = document.getElementById("btn-new-game");
 const btnExtras = document.getElementById("btn-extras");
 const btnExtrasBack = document.getElementById("btn-extras-back");
+
+const characterExtrasScreen = document.getElementById("character-extras-screen");
+const characterExtrasName = document.getElementById("character-extras-name");
+const characterExtrasDivision = document.getElementById("character-extras-division");
+const characterExtrasSprite = document.getElementById("character-extras-sprite");
+const characterExtrasMoodSelect = document.getElementById("character-extras-mood-select");
+const characterExtrasDescription = document.getElementById("character-extras-description");
+const characterExtrasConnectionsList = document.getElementById("character-extras-connections-list");
+const characterExtrasLinksList = document.getElementById("character-extras-links-list");
+const btnCharacterExtrasBack = document.getElementById("btn-character-extras-back");
+
+// One entry per character with a written-up extras page — the hub list below
+// is built straight from this object's keys, so adding a new character here
+// is the only step needed to make them show up.
+const CHARACTER_PROFILES = {
+  ctc: {
+    name: "Cytotoxic T Cell",
+    division: "CD8+ T Cell Division",
+    description: "A generally cold t cell who was assigned the alias \"Cytotoxic T Cell\" after graduating at the top of his training squadron. As such, a lot of pressure remains on top of his soldiers to perform the best. He often remains silent and outwardly shows little emotion, preferring to remain focused on the task at hand.",
+    portraits: [
+      { label: "Idle", src: "assets/ctc/idle-portrait.png" },
+      { label: "Hurt", src: "assets/ctc/hurt-portrait.png" },
+      { label: "Shocked", src: "assets/ctc/shocked-portrait.png" },
+      { label: "Blush", src: "assets/ctc/blush-portrait.png" },
+      { label: "Battle", src: "assets/ctc/battle-portrait.png" }
+    ],
+    connections: [
+      {
+        name: "Arden",
+        description: "His partner. The one cell he lets stay close to him, even with his touch aversion. Their relationship is subtle but present throughout this game."
+      },
+      {
+        name: "Killer T Cell",
+        description: "A coworker, someone who once trained alongside him in his squadron during his childhood. The two don't interact now, and barely remember each other."
+      }
+    ],
+    links: [
+      { label: "His TH Profile", url: "https://toyhou.se/35388978.cytotoxic-t-cell" },
+      { label: "More on his backstory/childhood", url: "https://toyhou.se/~literature/356650.cell-world-lore/3.t-cell-training/" }
+    ]
+  }
+};
+
+let currentCharacterProfileId = null;
+
+function buildExtrasCharacterList() {
+  extrasCharacterList.innerHTML = "";
+  Object.keys(CHARACTER_PROFILES).forEach((charId) => {
+    const profile = CHARACTER_PROFILES[charId];
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "extras-character-btn";
+    const label = document.createElement("span");
+    label.textContent = profile.name;
+    btn.appendChild(label);
+    btn.addEventListener("click", () => showCharacterProfile(charId));
+    extrasCharacterList.appendChild(btn);
+  });
+}
+
+function showCharacterProfile(charId) {
+  const profile = CHARACTER_PROFILES[charId];
+  if (!profile) return;
+  currentCharacterProfileId = charId;
+
+  characterExtrasName.textContent = profile.name;
+  characterExtrasDivision.textContent = profile.division;
+  characterExtrasDescription.textContent = profile.description;
+
+  characterExtrasMoodSelect.innerHTML = "";
+  profile.portraits.forEach((portrait, index) => {
+    const option = document.createElement("option");
+    option.value = String(index);
+    option.textContent = portrait.label;
+    characterExtrasMoodSelect.appendChild(option);
+  });
+  characterExtrasMoodSelect.value = "0";
+  characterExtrasSprite.src = profile.portraits[0].src;
+  characterExtrasSprite.alt = `${profile.name} — ${profile.portraits[0].label}`;
+
+  characterExtrasConnectionsList.innerHTML = "";
+  profile.connections.forEach((connection) => {
+    const entry = document.createElement("div");
+    entry.className = "connection-entry";
+    const name = document.createElement("div");
+    name.className = "connection-name";
+    name.textContent = connection.name;
+    const description = document.createElement("div");
+    description.className = "connection-description";
+    description.textContent = connection.description;
+    entry.appendChild(name);
+    entry.appendChild(description);
+    characterExtrasConnectionsList.appendChild(entry);
+  });
+
+  characterExtrasLinksList.innerHTML = "";
+  profile.links.forEach((link) => {
+    const a = document.createElement("a");
+    a.href = link.url;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.className = "extras-link-btn";
+    const label = document.createElement("span");
+    label.textContent = link.label;
+    a.appendChild(label);
+    characterExtrasLinksList.appendChild(a);
+  });
+
+  extrasScreen.hidden = true;
+  characterExtrasScreen.hidden = false;
+  characterExtrasScreen.scrollTop = 0;
+}
+
+characterExtrasMoodSelect.addEventListener("change", () => {
+  const profile = CHARACTER_PROFILES[currentCharacterProfileId];
+  if (!profile) return;
+  const chosen = profile.portraits[Number(characterExtrasMoodSelect.value)];
+  characterExtrasSprite.src = chosen.src;
+  characterExtrasSprite.alt = `${profile.name} — ${chosen.label}`;
+});
+
+btnCharacterExtrasBack.addEventListener("click", () => {
+  characterExtrasScreen.hidden = true;
+  extrasScreen.hidden = false;
+});
+
+buildExtrasCharacterList();
 
 btnNewGame.addEventListener("click", () => {
   titleScreen.hidden = true;
